@@ -1,0 +1,30 @@
+# Data Paths (Updated for new structure)
+data:
+  train_images: 'shared/dataset/training_set/images'
+  train_masks: 'shared/dataset/training_set/masks'
+  val_images: 'shared/dataset/validation_set/images'
+  val_masks: 'shared/dataset/validation_set/masks'
+  test_images: 'shared/dataset/test_set/images'
+  test_masks: 'shared/dataset/test_set/masks'
+  cache_dir: 'preprocessed_data'
+  use_cache: true
+
+# Data Augmentation
+augmentation:
+  train:
+    horizontal_flip:
+      p: 0.5
+    rotate:
+      limit: 20
+      p: 0.5
+    shift_scale_rotate:
+      shift_limit: 0.1
+      scale_limit: 0.1
+      rotate_limit: 0
+      p: 0.5
+
+  # Preprocessing (always applied)
+  preprocessing:
+    image_size: [256, 256]
+    normalize: true
+    normalize_range: [0, 1]
