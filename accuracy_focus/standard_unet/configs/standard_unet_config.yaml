@@ -46,7 +46,10 @@ training:
 
 # Loss Function
 loss:
-  name: 'DiceLoss'
+  name: 'DiceBCELoss'
+  dice_weight: 0.8
+  bce_weight: 0.2
+  smooth: 1.0
 
 # Data Augmentation
 augmentation:
