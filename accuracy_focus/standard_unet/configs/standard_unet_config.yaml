@@ -9,7 +9,7 @@ data:
   val_masks: 'shared/dataset/validation_set/masks'
   test_images: 'shared/dataset/test_set/images'
   test_masks: 'shared/dataset/test_set/masks'
-  cache_dir: 'accuracy_focus/standard_u_net/preprocessed_data'
+  cache_dir: 'shared/preprocessed_data'
   use_cache: true
 
 # Model Architecture
@@ -46,7 +46,7 @@ training:
 
 # Loss Function
 loss:
-  name: 'BCELoss' # Binary Cross-Entropy for standard U-Net
+  name: 'DiceLoss'
 
 # Data Augmentation
 augmentation:
