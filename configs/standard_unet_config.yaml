@@ -1,0 +1,81 @@
+# Training Configuration for Standard U-Net
+# Fetal Head Segmentation - Standard U-Net Baseline
+
+# Data Paths
+data:
+  train_images: 'dataset/training_set/images'
+  train_masks: 'dataset/training_set/masks'
+  val_images: 'dataset/validation_set/images'
+  val_masks: 'dataset/validation_set/masks'
+  test_images: 'dataset/test_set/images'
+  test_masks: 'dataset/test_set/masks'
+  cache_dir: 'preprocessed_data'
+  use_cache: true
+
+# Model Architecture
+model:
+  name: 'StandardUNet'
+  in_channels: 1
+  out_channels: 1
+  base_filters: 64
+
+# Training Hyperparameters
+training:
+  batch_size: 16
+  num_epochs: 100
+  num_workers: 4
+  pin_memory: true
+  early_stopping_patience: 15
+
+  # Optimizer - Standard U-Net uses Adam with lr=1e-4
+  optimizer:
+    name: 'Adam'
+    lr: 0.0001 # 1e-4 as specified
+    betas: [0.9, 0.999]
+    eps: 1.0e-8
+    weight_decay: 0.0
+
+  # Learning Rate Scheduler
+  scheduler:
+    name: 'ReduceLROnPlateau'
+    mode: 'max'
+    factor: 0.5
+    patience: 10
+    min_lr: 1.0e-6
+    verbose: true
+
+# Loss Function
+loss:
+  name: 'BCELoss' # Binary Cross-Entropy for standard U-Net
+
+# Preprocessing
+preprocessing:
+  image_size: [256, 256]
+  normalize: true # Divide by 255.0
+  normalize_method: 'divide_255' # Simple normalization
+
+# Data Augmentation
+augmentation:
+  horizontal_flip: 0.5
+  rotation_limit: 20
+  scale_limit: 0.1
+  translate_limit: 0.1
+
+# Logging and Checkpointing
+logging:
+  checkpoint_dir: 'results/checkpoints/standard_unet'
+  log_dir: 'results/logs/standard_unet'
+  prediction_dir: 'results/predictions/standard_unet'
+  visualization_dir: 'results/visualizations/standard_unet'
+  save_every_n_epochs: 10
+  save_best_only: true
+  visualize_every_n_epochs: 5
+
+# Evaluation Metrics
+metrics:
+  - 'dice_coefficient'
+  - 'iou'
+  - 'pixel_accuracy'
+
+# Device
+device: 'cuda' # or 'cpu'
