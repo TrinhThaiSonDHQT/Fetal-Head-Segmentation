@@ -3,14 +3,17 @@
 
 # Data Paths (Updated for new structure)
 data:
-  train_images: 'shared/dataset/training_set/images'
-  train_masks: 'shared/dataset/training_set/masks'
-  val_images: 'shared/dataset/validation_set/images'
-  val_masks: 'shared/dataset/validation_set/masks'
-  test_images: 'shared/dataset/test_set/images'
-  test_masks: 'shared/dataset/test_set/masks'
-  cache_dir: 'shared/preprocessed_data'
-  use_cache: true
+  # train_images: 'shared/dataset/training_set/images'
+  # train_masks: 'shared/dataset/training_set/masks'
+  # val_images: 'shared/dataset/validation_set/images'
+  # val_masks: 'shared/dataset/validation_set/masks'
+  train_images: 'shared/dataset_v2/training_set/images'
+  train_masks: 'shared/dataset_v2/training_set/masks'
+  val_images: 'shared/dataset_v2/validation_set/images'
+  val_masks: 'shared/dataset_v2/validation_set/masks'
+
+  # test_images: 'shared/dataset/test_set/images'
+  # test_masks: 'shared/dataset/test_set/masks'
 
 # Model Architecture
 model:
@@ -30,7 +33,7 @@ training:
   # Optimizer - Standard U-Net uses Adam with lr=1e-4
   optimizer:
     name: 'Adam'
-    lr: 0.0001 # 1e-4 as specified
+    lr: 0.001
     betas: [0.9, 0.999]
     eps: 1.0e-8
     weight_decay: 0.0
@@ -52,31 +55,33 @@ loss:
   smooth: 1.0
 
 # Data Augmentation
-augmentation:
-  train:
-    horizontal_flip:
-      p: 0.5
-    rotate:
-      limit: 20
-      p: 0.5
-    shift_scale_rotate:
-      shift_limit: 0.1
-      scale_limit: 0.1
-      rotate_limit: 0
-      p: 0.5
+# augmentation:
+#   train:
+#     horizontal_flip:
+#       p: 0.5
+#     vertical_flip:
+#       p: 0.5
+#     rotate:
+#       limit: 20
+#       p: 0.5
+#     shift_scale_rotate:
+#       shift_limit: 0.1
+#       scale_limit: 0.1
+#       rotate_limit: 0
+#       p: 0.5
 
-  # Preprocessing (always applied)
-  preprocessing:
-    image_size: [256, 256]
-    normalize: true
-    normalize_method: 'divide_255' # Simple normalization
+#   # Preprocessing (always applied)
+#   preprocessing:
+#     image_size: [256, 256]
+#     normalize: true
+#     normalize_method: 'divide_255' # Simple normalization
 
 # Logging and Checkpointing (Updated for new structure)
 logging:
-  checkpoint_dir: 'accuracy_focus/standard_u_net/results/checkpoints'
-  log_dir: 'accuracy_focus/standard_u_net/results/logs'
-  prediction_dir: 'accuracy_focus/standard_u_net/results/predictions'
-  visualization_dir: 'accuracy_focus/standard_u_net/results/visualizations'
+  checkpoint_dir: 'accuracy_focus/standard_unet/results/checkpoints'
+  log_dir: 'accuracy_focus/standard_unet/results/logs'
+  prediction_dir: 'accuracy_focus/standard_unet/results/predictions'
+  visualization_dir: 'accuracy_focus/standard_unet/results/visualizations'
   save_every_n_epochs: 10
   save_best_only: true
   visualize_every_n_epochs: 5

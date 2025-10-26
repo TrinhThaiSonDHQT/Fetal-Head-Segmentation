@@ -41,15 +41,18 @@ class HC18Dataset(Dataset):
         self.image_files = [f for f in all_files if '_Annotation' not in f]
         
         # Build corresponding mask filenames
-        # HC18 dataset: masks have the SAME filename as images, just in different directory
+        # Masks have '_Annotation' suffix before file extension
         self.mask_files = []
         for img_file in self.image_files:
-            # Mask file has same name as image file
-            mask_path = os.path.join(mask_dir, img_file)
+            # Create mask filename by adding '_Annotation' before extension
+            # e.g., 'image_001.png' -> 'image_001_Annotation.png'
+            name, ext = os.path.splitext(img_file)
+            mask_file = f"{name}_Annotation{ext}"
+            mask_path = os.path.join(mask_dir, mask_file)
             if os.path.exists(mask_path):
-                self.mask_files.append(img_file)
+                self.mask_files.append(mask_file)
             else:
-                print(f"Warning: Mask not found for image {img_file}")
+                print(f"Warning: Mask not found for image {img_file} (expected: {mask_file})")
         
         # Verify that all images have corresponding masks
         assert len(self.image_files) == len(self.mask_files), \
@@ -89,18 +92,23 @@ class HC18Dataset(Dataset):
         
         # Apply transformations if provided (Albumentations)
         if self.transform is not None:
-            # Albumentations with ToTensorV2 handles everything
+            # Albumentations with ToTensorV2 handles augmentation and tensorization
             transformed = self.transform(image=image, mask=mask)
-            image = transformed['image']  # Already a tensor with shape (1, H, W)
-            mask = transformed['mask']    # Tensor with shape (H, W) or (1, H, W)
+            image = transformed['image']  # Tensor (C, H, W) - A.Normalize() handles [0,1] normalization
+            mask = transformed['mask']    # Tensor (H, W) - NOT normalized, still [0, 255]
             
-            # Add channel dimension to mask if not present
+            # Image is already normalized to [0, 1] by A.Normalize() in transforms.py
+            # No additional normalization needed for images
+            
+            # Add channel dimension to mask: (H, W) -> (1, H, W)
             if mask.ndim == 2:
-                mask = mask.unsqueeze(0)  # (H, W) -> (1, H, W)
+                mask = mask.unsqueeze(0)
             
-            # Ensure mask is binary (0 or 1)
-            # ToTensorV2 keeps masks in [0, 255] range, so threshold at 127.5 (middle)
-            mask = (mask > 127.5).float()
+            # Normalize mask to binary [0, 1]
+            # A.Normalize() only affects images, not masks
+            # ToTensorV2 converts mask to tensor but keeps [0, 255] range
+            mask = mask / 255.0
+            mask = (mask > 0.5).float()
         else:
             # Manual preprocessing without Albumentations
             # Resize to 256x256

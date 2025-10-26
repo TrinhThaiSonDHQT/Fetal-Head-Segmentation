@@ -48,6 +48,9 @@ def get_transforms(height=256, width=256, is_train=True):
             # Horizontal flipping with 50% probability
             A.HorizontalFlip(p=0.5),
             
+            # Vertical flipping with 50% probability
+            A.VerticalFlip(p=0.5),
+            
             # Random rotations within ±20 degrees
             A.Rotate(limit=20, p=0.5),
             

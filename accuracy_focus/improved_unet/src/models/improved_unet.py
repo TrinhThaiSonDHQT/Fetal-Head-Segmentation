@@ -11,7 +11,7 @@ from .scale_attention import ScaleAttentionModule
 
 class ImprovedUNet(nn.Module):
     """
-    Improved U-Net architecture for precise fetal head segmentation.
+    Improved U-Net architecture for fetal head segmentation.
     
     Key features:
     - Residual blocks in encoder/decoder
