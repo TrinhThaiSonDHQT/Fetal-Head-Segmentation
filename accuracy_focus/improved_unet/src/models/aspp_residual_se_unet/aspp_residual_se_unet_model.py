@@ -51,6 +51,9 @@ class ASPPResidualSEUNet(nn.Module):
         reduction_ratio (int): Reduction ratio for SE blocks (default=16)
         atrous_rates (list): Dilation rates for ASPP (default=[6, 12, 18])
         aspp_dropout (float): Dropout rate in ASPP module (default=0.5)
+        aspp_use_groupnorm (bool): Use GroupNorm in ASPP global pooling (default=True)
+                                    True: Robust to batch_size=1 (recommended)
+                                    False: Use BatchNorm for backward compatibility
     """
     
     def __init__(
@@ -60,7 +63,8 @@ class ASPPResidualSEUNet(nn.Module):
         base_channels=64,
         reduction_ratio=16,
         atrous_rates=[6, 12, 18],
-        aspp_dropout=0.5
+        aspp_dropout=0.5,
+        aspp_use_groupnorm=True  # True: robust to batch_size=1, False: backward-compatible
     ):
         super(ASPPResidualSEUNet, self).__init__()
         
@@ -94,7 +98,8 @@ class ASPPResidualSEUNet(nn.Module):
             in_channels=channels[3],
             out_channels=channels[4],
             atrous_rates=atrous_rates,
-            dropout_rate=aspp_dropout
+            dropout_rate=aspp_dropout,
+            use_groupnorm=aspp_use_groupnorm
         )
         
         # ==================== DECODER ====================
@@ -211,7 +216,8 @@ if __name__ == "__main__":
         base_channels=64,
         reduction_ratio=16,
         atrous_rates=[6, 12, 18],
-        aspp_dropout=0.5
+        aspp_dropout=0.5,
+        aspp_use_groupnorm=True  # Use GroupNorm for robustness
     ).to(device)
     
     # Test with dummy input

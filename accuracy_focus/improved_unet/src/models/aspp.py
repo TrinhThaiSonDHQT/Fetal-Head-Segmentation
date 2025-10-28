@@ -39,12 +39,13 @@ class ASPP(nn.Module):
     Output shape: (B, out_channels, H, W)
     """
     
-    def __init__(self, in_channels, out_channels, atrous_rates=[6, 12, 18], dropout_rate=0.5):
+    def __init__(self, in_channels, out_channels, atrous_rates=[6, 12, 18], dropout_rate=0.5, use_groupnorm=True):
         super(ASPP, self).__init__()
         
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.atrous_rates = atrous_rates
+        self.use_groupnorm = use_groupnorm
         
         # Branch 1: 1x1 convolution (point-wise feature extraction)
         self.conv1x1 = nn.Sequential(
@@ -72,10 +73,18 @@ class ASPP(nn.Module):
             )
         
         # Branch 5: Global average pooling branch (image-level features)
+        # Use GroupNorm (default) instead of BatchNorm to handle batch_size=1 cases
+        if use_groupnorm:
+            # GroupNorm: works with any batch size
+            norm_layer = nn.GroupNorm(num_groups=32, num_channels=out_channels)
+        else:
+            # BatchNorm: requires batch_size > 1 (for backward compatibility)
+            norm_layer = nn.BatchNorm2d(out_channels)
+        
         self.global_avg_pool = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),  # Global pooling to (B, C, 1, 1)
             nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False),
-            nn.BatchNorm2d(out_channels),
+            norm_layer,
             nn.ReLU(inplace=True)
         )
         
