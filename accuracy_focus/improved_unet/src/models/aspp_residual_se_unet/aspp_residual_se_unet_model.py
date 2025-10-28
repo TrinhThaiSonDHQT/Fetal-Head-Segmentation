@@ -1,39 +1,68 @@
 """
-Residual U-Net with Squeeze-and-Excitation (SE) Mechanism
+ASPP-Enhanced Residual U-Net with Squeeze-and-Excitation (SE) Mechanism
 
-U-Net architecture using ResidualBlockSE with SE applied after:
-1. Every encoder/decoder block
-2. Every skip connection before concatenation
+This model extends the Residual SE U-Net by integrating ASPP (Atrous Spatial
+Pyramid Pooling) at the bottleneck to capture multi-scale contextual information.
+
+Architecture:
+    - Encoder: 4 downsampling stages with ResidualBlockSE
+    - Bottleneck: ASPP module for multi-scale feature extraction
+    - Decoder: 4 upsampling stages with ResidualBlockSE
+    - SE applied to skip connections before concatenation
+
+Key Innovation:
+    ASPP at bottleneck captures multi-scale contextual features using parallel
+    atrous convolutions with different dilation rates, enhancing the model's
+    ability to segment objects at various scales.
+
+Reference:
+    - DeepLabV3+: Chen, L. C., et al. (2018). Encoder-Decoder with Atrous
+      Separable Convolution for Semantic Image Segmentation. ECCV 2018.
 """
 import torch
 import torch.nn as nn
 from ..residual_block import ResidualBlockSE
 from ..se_block import SEBlock
+from ..aspp import ASPP
 
 
-class ResidualSEUNet(nn.Module):
+class ASPPResidualSEUNet(nn.Module):
     """
-    Residual U-Net with SE mechanism.
+    ASPP-Enhanced Residual U-Net with SE mechanism.
     
-    Architecture:
-        - Encoder: 4 downsampling stages with ResidualBlockSE (SE integrated inside each block)
-        - Bottleneck: ResidualBlockSE (SE integrated inside)
-        - Decoder: 4 upsampling stages with ResidualBlockSE (SE integrated inside each block)
-        - SE applied to skip connections before concatenation with decoder features
+    Architecture Overview:
+        - Encoder: 4 stages with ResidualBlockSE (SE integrated inside blocks)
+        - Bottleneck: ASPP module for multi-scale context (replaces standard ResidualBlockSE)
+        - Decoder: 4 stages with ResidualBlockSE (SE integrated inside blocks)
+        - Skip connections: SE blocks applied before concatenation
     
     SE Placement:
-        1. Inside each ResidualBlockSE (after Conv2-BN, before residual addition)
-        2. On skip connections before concatenation with upsampled features
+        1. Inside each ResidualBlockSE (encoder/decoder)
+        2. On skip connections before concatenation
+    
+    ASPP Placement:
+        - At bottleneck (lowest spatial resolution, highest semantic level)
+        - Captures multi-scale context with dilation rates [6, 12, 18]
     
     Args:
         in_channels (int): Number of input channels (default=1 for grayscale)
         out_channels (int): Number of output channels (default=1 for binary segmentation)
         base_channels (int): Number of channels in the first layer (default=64)
         reduction_ratio (int): Reduction ratio for SE blocks (default=16)
+        atrous_rates (list): Dilation rates for ASPP (default=[6, 12, 18])
+        aspp_dropout (float): Dropout rate in ASPP module (default=0.5)
     """
     
-    def __init__(self, in_channels=1, out_channels=1, base_channels=64, reduction_ratio=16):
-        super(ResidualSEUNet, self).__init__()
+    def __init__(
+        self,
+        in_channels=1,
+        out_channels=1,
+        base_channels=64,
+        reduction_ratio=16,
+        atrous_rates=[6, 12, 18],
+        aspp_dropout=0.5
+    ):
+        super(ASPPResidualSEUNet, self).__init__()
         
         # Channel progression: 64 -> 128 -> 256 -> 512 -> 1024
         channels = [base_channels * (2 ** i) for i in range(5)]
@@ -59,8 +88,14 @@ class ResidualSEUNet(nn.Module):
         self.enc4 = ResidualBlockSE(channels[2], channels[3], reduction_ratio)
         self.pool4 = nn.MaxPool2d(kernel_size=2, stride=2)
         
-        # ==================== BOTTLENECK ====================
-        self.bottleneck = ResidualBlockSE(channels[3], channels[4], reduction_ratio)
+        # ==================== BOTTLENECK (ASPP) ====================
+        # Replace standard ResidualBlockSE with ASPP for multi-scale context
+        self.bottleneck_aspp = ASPP(
+            in_channels=channels[3],
+            out_channels=channels[4],
+            atrous_rates=atrous_rates,
+            dropout_rate=aspp_dropout
+        )
         
         # ==================== DECODER ====================
         # Upsampling + ResidualBlockSE (SE already integrated inside)
@@ -86,7 +121,7 @@ class ResidualSEUNet(nn.Module):
     
     def forward(self, x):
         """
-        Forward pass through Residual SE U-Net.
+        Forward pass through ASPP Residual SE U-Net.
         
         Args:
             x (torch.Tensor): Input tensor of shape (B, C_in, H, W)
@@ -114,8 +149,9 @@ class ResidualSEUNet(nn.Module):
         enc4 = self.enc4(x)
         x = self.pool4(enc4)
         
-        # ==================== BOTTLENECK ====================
-        x = self.bottleneck(x)  # SE already inside ResidualBlockSE
+        # ==================== BOTTLENECK (ASPP) ====================
+        # ASPP for multi-scale contextual feature extraction
+        x = self.bottleneck_aspp(x)
         
         # ==================== DECODER ====================
         # Decoder stage 4
@@ -169,11 +205,13 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     # Create model
-    model = ResidualSEUNet(
+    model = ASPPResidualSEUNet(
         in_channels=1,
         out_channels=1,
         base_channels=64,
-        reduction_ratio=16
+        reduction_ratio=16,
+        atrous_rates=[6, 12, 18],
+        aspp_dropout=0.5
     ).to(device)
     
     # Test with dummy input
@@ -181,15 +219,23 @@ if __name__ == "__main__":
     output = model(dummy_input)
     
     # Print model information
-    print("=" * 60)
-    print("Residual SE U-Net Model Summary")
-    print("=" * 60)
+    print("=" * 70)
+    print("ASPP-Enhanced Residual SE U-Net Model Summary")
+    print("=" * 70)
     print(f"Input shape:  {dummy_input.shape}")
     print(f"Output shape: {output.shape}")
-    print("-" * 60)
+    print("-" * 70)
     
     total_params, trainable_params = count_parameters(model)
     print(f"Total parameters:     {total_params:,}")
     print(f"Trainable parameters: {trainable_params:,}")
     print(f"Model size: ~{total_params * 4 / (1024**2):.2f} MB (float32)")
-    print("=" * 60)
+    print("=" * 70)
+    
+    # Architecture summary
+    print("\nArchitecture Highlights:")
+    print("  • Encoder: 4 stages with ResidualBlockSE")
+    print("  • Bottleneck: ASPP (multi-scale context, rates=[6, 12, 18])")
+    print("  • Decoder: 4 stages with ResidualBlockSE")
+    print("  • Skip connections: SE blocks applied before concat")
+    print("=" * 70)

@@ -1,149 +1,112 @@
 """
-Residual Block for Improved U-Net Architecture
-
-This module implements the residual block used in both the encoder and decoder
-of the improved U-Net model for fetal head segmentation.
+Residual Block with Squeeze-and-Excitation (SE) Mechanism
 """
-
 import torch
 import torch.nn as nn
+from .se_block import SEBlock
 
 
-class ResidualBlock(nn.Module):
+class ResidualBlockSE(nn.Module):
     """
-    Residual Block with two convolutional layers and a skip connection.
+    Residual Block with Squeeze-and-Excitation mechanism.
     
     Architecture:
-        - Conv2d(in_channels, out_channels, 3x3) + BatchNorm + Sigmoid
-        - Conv2d(out_channels, out_channels, 3x3) + BatchNorm + Tanh
-        - Skip connection (with 1x1 conv if channels differ)
-        - Final activation after addition
+        Input -> Conv1 -> BatchNorm -> ReLU -> Conv2 -> BatchNorm -> SE -> (+) -> ReLU -> Output
+                                                                          |
+                                                                       Identity
     
-    Uses sigmoid-tanh activation functions for improved feature learning.
+    If in_channels != out_channels, a 1x1 convolution is applied to the skip connection.
     
     Args:
         in_channels (int): Number of input channels
         out_channels (int): Number of output channels
-        activation (str): Activation function pair to use ('sigmoid-tanh' or 'relu')
-                         Default: 'sigmoid-tanh'
+        reduction_ratio (int): Ratio for channel reduction in SE block (default=16)
     """
     
-    def __init__(self, in_channels: int, out_channels: int, activation: str = 'sigmoid-tanh'):
-        super().__init__()
+    def __init__(self, in_channels, out_channels, reduction_ratio=16):
+        super(ResidualBlockSE, self).__init__()
         
-        # Select activation function based on configuration
-        self.activation_type = activation.lower()
-        
-        if self.activation_type == 'sigmoid-tanh':
-            # Sigmoid for first conv, tanh for second conv
-            self.activation1 = nn.Sigmoid()
-            self.activation2 = nn.Tanh()
-            self.final_activation = nn.Tanh()
-        elif self.activation_type == 'relu':
-            # Alternative: ReLU for all (previous implementation)
-            self.activation1 = nn.ReLU(inplace=True)
-            self.activation2 = nn.ReLU(inplace=True)
-            self.final_activation = nn.ReLU(inplace=True)
-        else:
-            raise ValueError(f"Unsupported activation: {activation}. Use 'sigmoid-tanh' or 'relu'.")
-        
-        # First convolutional block
-        self.conv1 = nn.Conv2d(
-            in_channels, 
-            out_channels, 
-            kernel_size=3, 
-            padding=1, 
-            bias=False
-        )
+        # Main path: Two 3x3 convolutions with BatchNorm
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(out_channels)
+        self.relu = nn.ReLU(inplace=True)
         
-        # Second convolutional block
-        self.conv2 = nn.Conv2d(
-            out_channels, 
-            out_channels, 
-            kernel_size=3, 
-            padding=1, 
-            bias=False
-        )
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(out_channels)
         
-        # Skip connection (identity mapping)
-        # Use 1x1 convolution if input and output channels differ
-        self.skip_connection = nn.Sequential()
+        # Squeeze-and-Excitation block
+        self.se = SEBlock(out_channels, reduction_ratio)
+        
+        # Skip connection: 1x1 conv if channel dimensions don't match
         if in_channels != out_channels:
             self.skip_connection = nn.Sequential(
                 nn.Conv2d(in_channels, out_channels, kernel_size=1, bias=False),
                 nn.BatchNorm2d(out_channels)
             )
-        
-        # Final activation after residual addition
-        if self.activation_type == 'relu':
-            self.final_activation = nn.ReLU(inplace=True)
-        elif self.activation_type == 'sigmoid':
-            self.final_activation = nn.Sigmoid()
-        else:  # tanh
-            self.final_activation = nn.Tanh()
+        else:
+            self.skip_connection = nn.Identity()
     
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x):
         """
-        Forward pass of the residual block.
+        Forward pass through Residual Block with SE.
         
         Args:
-            x (torch.Tensor): Input tensor of shape (batch_size, in_channels, height, width)
+            x (torch.Tensor): Input tensor of shape (B, C_in, H, W)
         
         Returns:
-            torch.Tensor: Output tensor of shape (batch_size, out_channels, height, width)
+            torch.Tensor: Output tensor of shape (B, C_out, H, W)
         """
         # Save identity for skip connection
         identity = self.skip_connection(x)
         
-        # First convolutional block with sigmoid activation
+        # Main path
         out = self.conv1(x)
         out = self.bn1(out)
-        out = self.activation1(out)
+        out = self.relu(out)
         
-        # Second convolutional block
         out = self.conv2(out)
         out = self.bn2(out)
         
-        # Add skip connection (residual) BEFORE final activation
+        # Apply SE mechanism
+        out = self.se(out)
+        
+        # Add skip connection
         out = out + identity
         
-        # Single final activation after residual addition
-        # This maintains gradient flow and prevents double squashing
-        out = self.activation2(out)
+        # Final activation
+        out = self.relu(out)
         
         return out
 
 
-if __name__ == "__main__":
-    # Test the ResidualBlock
-    print("Testing ResidualBlock...")
+class DoubleResidualBlockSE(nn.Module):
+    """
+    Double Residual Block with SE for stronger feature extraction.
     
-    # Test with matching channels (sigmoid-tanh activation - default)
-    block1 = ResidualBlock(64, 64, activation='sigmoid-tanh')
-    x1 = torch.randn(2, 64, 128, 128)
-    y1 = block1(x1)
-    print(f"Input shape: {x1.shape} -> Output shape: {y1.shape}")
-    assert y1.shape == x1.shape, "Output shape mismatch for same channels"
+    Stacks two ResidualBlockSE modules sequentially.
     
-    # Test with different channels
-    block2 = ResidualBlock(64, 128, activation='sigmoid-tanh')
-    x2 = torch.randn(2, 64, 128, 128)
-    y2 = block2(x2)
-    print(f"Input shape: {x2.shape} -> Output shape: {y2.shape}")
-    assert y2.shape == (2, 128, 128, 128), "Output shape mismatch for different channels"
+    Args:
+        in_channels (int): Number of input channels
+        out_channels (int): Number of output channels
+        reduction_ratio (int): Ratio for channel reduction in SE blocks (default=16)
+    """
     
-    # Test with ReLU activation (alternative)
-    block3 = ResidualBlock(32, 64, activation='relu')
-    x3 = torch.randn(2, 32, 64, 64)
-    y3 = block3(x3)
-    print(f"Input shape (relu): {x3.shape} -> Output shape: {y3.shape}")
+    def __init__(self, in_channels, out_channels, reduction_ratio=16):
+        super(DoubleResidualBlockSE, self).__init__()
+        
+        self.block1 = ResidualBlockSE(in_channels, out_channels, reduction_ratio)
+        self.block2 = ResidualBlockSE(out_channels, out_channels, reduction_ratio)
     
-    print("\n✓ All tests passed!")
-
-    # Count parameters
-    total_params = sum(p.numel() for p in block1.parameters())
-    print(f"\nTotal parameters in ResidualBlock(64->64): {total_params:,}")
-    
-    print("\n✓ All tests passed!")
+    def forward(self, x):
+        """
+        Forward pass through Double Residual Block with SE.
+        
+        Args:
+            x (torch.Tensor): Input tensor of shape (B, C_in, H, W)
+        
+        Returns:
+            torch.Tensor: Output tensor of shape (B, C_out, H, W)
+        """
+        x = self.block1(x)
+        x = self.block2(x)
+        return x

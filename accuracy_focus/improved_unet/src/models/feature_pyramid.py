@@ -4,7 +4,7 @@ Feature Pyramid Module (FP) for Improved U-Net
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .scale_attention import ScaleAttentionModule
+from .improved_unet.scale_attention import ScaleAttentionModule
 
 
 class FeaturePyramidModule(nn.Module):
