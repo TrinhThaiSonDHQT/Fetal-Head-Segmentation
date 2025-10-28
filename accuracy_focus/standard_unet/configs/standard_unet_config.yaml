@@ -54,28 +54,6 @@ loss:
   bce_weight: 0.2
   smooth: 1.0
 
-# Data Augmentation
-# augmentation:
-#   train:
-#     horizontal_flip:
-#       p: 0.5
-#     vertical_flip:
-#       p: 0.5
-#     rotate:
-#       limit: 20
-#       p: 0.5
-#     shift_scale_rotate:
-#       shift_limit: 0.1
-#       scale_limit: 0.1
-#       rotate_limit: 0
-#       p: 0.5
-
-#   # Preprocessing (always applied)
-#   preprocessing:
-#     image_size: [256, 256]
-#     normalize: true
-#     normalize_method: 'divide_255' # Simple normalization
-
 # Logging and Checkpointing
 logging:
   checkpoint_dir: 'accuracy_focus/standard_unet/results/checkpoints'
