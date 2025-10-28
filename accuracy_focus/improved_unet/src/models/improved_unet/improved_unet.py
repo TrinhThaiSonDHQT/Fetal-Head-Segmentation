@@ -6,7 +6,7 @@ import torch
 import torch.nn as nn
 from .residual_block import ResidualBlock
 from ..feature_pyramid import FeaturePyramidModule
-from .improved_unet.scale_attention import ScaleAttentionModule
+from .scale_attention import ScaleAttentionModule
 
 
 class ImprovedUNet(nn.Module):
