@@ -76,7 +76,7 @@ loss:
 #     normalize: true
 #     normalize_method: 'divide_255' # Simple normalization
 
-# Logging and Checkpointing (Updated for new structure)
+# Logging and Checkpointing
 logging:
   checkpoint_dir: 'accuracy_focus/standard_unet/results/checkpoints'
   log_dir: 'accuracy_focus/standard_unet/results/logs'

@@ -1,16 +1,19 @@
 # Training Configuration for Fetal Head Segmentation
-# Based on "Precise segmentation of fetal head in ultrasound images using improved U-Net model"
 
 # Data Paths
 data:
-  train_images: 'dataset/training_set/images'
-  train_masks: 'dataset/training_set/masks'
-  val_images: 'dataset/validation_set/images'
-  val_masks: 'dataset/validation_set/masks'
-  test_images: 'dataset/test_set/images'
-  test_masks: 'dataset/test_set/masks'
-  cache_dir: 'preprocessed_data'
-  use_cache: true
+  # train_images: 'dataset/training_set/images'
+  # train_masks: 'dataset/training_set/masks'
+  # val_images: 'dataset/validation_set/images'
+  # val_masks: 'dataset/validation_set/masks'
+
+  train_images: 'shared/dataset_v3/training_set/images'
+  train_masks: 'shared/dataset_v3/training_set/masks'
+  val_images: 'shared/dataset_v3/validation_set/images'
+  val_masks: 'shared/dataset_v3/validation_set/masks'
+
+  # test_images: 'dataset/test_set/images'
+  # test_masks: 'dataset/test_set/masks'
 
 # Model Architecture
 model:
@@ -32,7 +35,7 @@ training:
   # Optimizer
   optimizer:
     name: 'Adam'
-    lr: 0.001 # Initial learning rate as specified in reference paper
+    lr: 0.001
     betas: [0.9, 0.999]
     eps: 1.0e-8
     weight_decay: 0.0
@@ -51,50 +54,44 @@ training:
     name: 'DiceBCELoss'
     dice_weight: 0.8
     bce_weight: 0.2
+    smooth: 1.0
 
 # Data Augmentation
-augmentation:
-  train:
-    horizontal_flip:
-      p: 0.5
-    vertical_flip:
-      p: 0.5
-    rotate:
-      limit: 20
-      p: 0.5
-    shift_scale_rotate:
-      shift_limit: 0.1
-      scale_limit: 0.1
-      rotate_limit: 0
-      p: 0.5
+# augmentation:
+#   train:
+#     horizontal_flip:
+#       p: 0.5
+#     vertical_flip:
+#       p: 0.5
+#     rotate:
+#       limit: 20
+#       p: 0.5
+#     shift_scale_rotate:
+#       shift_limit: 0.1
+#       scale_limit: 0.1
+#       rotate_limit: 0
+#       p: 0.5
 
-  # Preprocessing (always applied)
-  preprocessing:
-    image_size: [256, 256]
-    normalize: true
-    normalize_range: [0, 1]
+#   # Preprocessing (always applied)
+#   preprocessing:
+#     image_size: [256, 256]
+#     normalize: true
+#     normalize_range: [0, 1]
 
 # Validation
-validation:
-  val_split: 0.1 # 10% of training data for validation
-  val_frequency: 1 # Validate every N epochs
+# validation:
+#   val_split: 0.1 # 10% of training data for validation
+#   val_frequency: 1 # Validate every N epochs
 
-# Checkpointing
-checkpoint:
-  save_dir: 'accuracy_focus/improved_unet/results/checkpoints'
-  save_best: true
-  save_last: true
-  monitor: 'val_dice' # Metric to monitor for best model
-  mode: 'max' # 'max' for metrics like Dice, 'min' for loss
-
-# Logging
+# Logging and Checkpointing
 logging:
+  checkpoint_dir: 'accuracy_focus/improved_unet/results/checkpoints'
   log_dir: 'accuracy_focus/improved_unet/results/logs'
-  log_frequency: 10 # Log every N batches
-  tensorboard: true
-  save_predictions: true
   prediction_dir: 'accuracy_focus/improved_unet/results/predictions'
   visualization_dir: 'accuracy_focus/improved_unet/results/visualizations'
+  save_every_n_epochs: 10
+  save_best_only: true
+  visualize_every_n_epochs: 5
 
 # Target Performance Metrics
 target_metrics:
