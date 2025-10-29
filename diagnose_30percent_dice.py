@@ -17,8 +17,8 @@ print("COMPREHENSIVE DIAGNOSIS: WHY DICE SCORE IS STUCK AT 30%?")
 print("="*80)
 
 # Dataset paths
-img_dir = r"e:\Fetal Head Segmentation\shared\dataset_v3\training_set\images"
-mask_dir = r"e:\Fetal Head Segmentation\shared\dataset_v3\training_set\masks"
+img_dir = r"e:\Fetal Head Segmentation\shared\dataset\training_set\images"
+mask_dir = r"e:\Fetal Head Segmentation\shared\dataset\training_set\masks"
 
 # 1. Check dataset loading
 print("\n[1] DATASET LOADING CHECK")

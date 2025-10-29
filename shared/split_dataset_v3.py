@@ -1,6 +1,6 @@
 """
 Split dataset from /shared/dataset/images into training and validation sets
-Organizes into /shared/dataset_v3 structure with 80/20 split
+Organizes into /shared/dataset structure with 80/20 split
 INCLUDES ALL IMAGE VARIANTS (e.g., 10_HC, 10_2HC, 10_3HC, etc.)
 """
 import os
@@ -15,7 +15,7 @@ random.seed(RANDOM_SEED)
 
 # Define paths
 SOURCE_DIR = Path(__file__).parent / "dataset" / "images"
-TARGET_DIR = Path(__file__).parent / "dataset_v3"
+TARGET_DIR = Path(__file__).parent / "dataset"
 TRAIN_DIR = TARGET_DIR / "training_set"
 VAL_DIR = TARGET_DIR / "validation_set"
 

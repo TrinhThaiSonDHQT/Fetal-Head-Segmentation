@@ -48,8 +48,8 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"\nDevice: {device}")
 
 # Dataset
-img_dir = r"e:\Fetal Head Segmentation\shared\dataset_v3\training_set\images"
-mask_dir = r"e:\Fetal Head Segmentation\shared\dataset_v3\training_set\masks"
+img_dir = r"e:\Fetal Head Segmentation\shared\dataset\training_set\images"
+mask_dir = r"e:\Fetal Head Segmentation\shared\dataset\training_set\masks"
 transform = get_transforms(256, 256, is_train=False)
 
 dataset = HC18Dataset(img_dir, mask_dir, transform=transform)

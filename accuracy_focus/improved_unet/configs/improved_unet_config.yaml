@@ -7,10 +7,10 @@ data:
   # val_images: 'dataset/validation_set/images'
   # val_masks: 'dataset/validation_set/masks'
 
-  train_images: 'shared/dataset_v3/training_set/images'
-  train_masks: 'shared/dataset_v3/training_set/masks'
-  val_images: 'shared/dataset_v3/validation_set/images'
-  val_masks: 'shared/dataset_v3/validation_set/masks'
+  train_images: 'shared/dataset/training_set/images'
+  train_masks: 'shared/dataset/training_set/masks'
+  val_images: 'shared/dataset/validation_set/images'
+  val_masks: 'shared/dataset/validation_set/masks'
 
   # test_images: 'dataset/test_set/images'
   # test_masks: 'dataset/test_set/masks'
