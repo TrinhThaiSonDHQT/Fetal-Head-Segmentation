@@ -16,7 +16,8 @@ model:
 
 # Training Hyperparameters
 training:
-  batch_size: 16
+  # batch_size: 16
+  batch_size: 32
   num_epochs: 100
   num_workers: 2
   pin_memory: true
