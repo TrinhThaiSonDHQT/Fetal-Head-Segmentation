@@ -12,22 +12,24 @@ You asked: **"If extreme class imbalance is the problem, why don't papers mentio
 
 ### **1. Training Duration**
 
-| Aspect | Your Config | What Papers Really Do |
-|--------|-------------|----------------------|
-| **Epochs** | 100 | 200-300 (sometimes 500) |
-| **Early stopping patience** | 20 | 30-50 epochs |
-| **Total training time** | ~2 hours | 12-24 hours |
-| **Learning rate reductions** | 1-2 times | 4-6 times |
+| Aspect                       | Your Config | What Papers Really Do   |
+| ---------------------------- | ----------- | ----------------------- |
+| **Epochs**                   | 100         | 200-300 (sometimes 500) |
+| **Early stopping patience**  | 20          | 30-50 epochs            |
+| **Total training time**      | ~2 hours    | 12-24 hours             |
+| **Learning rate reductions** | 1-2 times   | 4-6 times               |
 
 **Your config:**
+
 ```yaml
 num_epochs: 100
 early_stopping_patience: 20
 ```
 
 **What you need:**
+
 ```yaml
-num_epochs: 250  # Minimum for 0.5% foreground
+num_epochs: 250 # Minimum for 0.5% foreground
 early_stopping_patience: 40
 ```
 
@@ -35,18 +37,18 @@ early_stopping_patience: 40
 
 ### **2. Data Augmentation Intensity**
 
-| Technique | Your Setup | What Papers Use |
-|-----------|------------|-----------------|
-| **HorizontalFlip** | p=0.5 ✅ | p=0.5 ✅ |
-| **VerticalFlip** | p=0.5 ✅ | p=0.5 ✅ |
-| **Rotation** | ±20°, p=0.5 ✅ | ±20°, p=0.7 |
-| **ShiftScaleRotate** | ±10%, p=0.5 | ±15%, p=0.7 |
-| **Elastic deformation** | ❌ **MISSING** | p=0.5 🔑 |
-| **Grid distortion** | ❌ **MISSING** | p=0.3 🔑 |
-| **Gaussian noise** | ❌ **MISSING** | σ=0.01, p=0.3 |
-| **Gaussian blur** | ❌ **MISSING** | kernel=3, p=0.2 |
-| **CLAHE** (contrast) | ❌ **MISSING** | p=0.3 |
-| **Brightness/Contrast** | ❌ **MISSING** | ±20%, p=0.3 |
+| Technique               | Your Setup     | What Papers Use |
+| ----------------------- | -------------- | --------------- |
+| **HorizontalFlip**      | p=0.5 ✅       | p=0.5 ✅        |
+| **VerticalFlip**        | p=0.5 ✅       | p=0.5 ✅        |
+| **Rotation**            | ±20°, p=0.5 ✅ | ±20°, p=0.7     |
+| **ShiftScaleRotate**    | ±10%, p=0.5    | ±15%, p=0.7     |
+| **Elastic deformation** | ❌ **MISSING** | p=0.5 🔑        |
+| **Gaussian noise**      | ❌ **MISSING** | σ=0.01, p=0.3   |
+| **Brightness/Contrast** | ❌ **MISSING** | ±20%, p=0.3     |
+| **Grid distortion**     | ❌ **MISSING** | p=0.3 🔑        |
+| **Gaussian blur**       | ❌ **MISSING** | kernel=3, p=0.2 |
+| **CLAHE** (contrast)    | ❌ **MISSING** | p=0.3           |
 
 🔑 = **Critical for medical image segmentation**
 
@@ -56,16 +58,17 @@ early_stopping_patience: 40
 
 ### **3. Loss Function**
 
-| Your Attempts | What Papers Actually Use |
-|---------------|--------------------------|
-| **Pure Dice** | ❌ Too weak for 0.5% FG |
-| **Dice + BCE (0.5/0.5)** | ❌ Still too weak |
-| **Dice + BCE (0.7/0.3)** | Better, but not enough |
-| **What works** | **Focal Tversky Loss + Dice + BCE** |
+| Your Attempts            | What Papers Actually Use            |
+| ------------------------ | ----------------------------------- |
+| **Pure Dice**            | ❌ Too weak for 0.5% FG             |
+| **Dice + BCE (0.5/0.5)** | ❌ Still too weak                   |
+| **Dice + BCE (0.7/0.3)** | Better, but not enough              |
+| **What works**           | **Focal Tversky Loss + Dice + BCE** |
 
 **Papers say**: "We used Dice loss"
 
 **Papers actually implement**:
+
 ```python
 # Option 1: Focal Tversky Loss (most effective for extreme imbalance)
 loss = FocalTverskyLoss(alpha=0.7, beta=0.3, gamma=1.33)
@@ -90,13 +93,13 @@ total_loss = (
 
 ### **4. Architecture Tweaks (Never Mentioned)**
 
-| Component | Your Setup | What Papers Use |
-|-----------|------------|-----------------|
-| **Encoder backbone** | Random init | **Pre-trained ResNet/EfficientNet** |
-| **Dropout** | None | 0.2-0.3 in decoder |
-| **Batch norm momentum** | Default (0.1) | 0.01-0.05 |
-| **Activation** | ReLU | **LeakyReLU or Mish** |
-| **Weight init** | Default | **He/Kaiming initialization** |
+| Component               | Your Setup    | What Papers Use                     |
+| ----------------------- | ------------- | ----------------------------------- |
+| **Encoder backbone**    | Random init   | **Pre-trained ResNet/EfficientNet** |
+| **Dropout**             | None          | 0.2-0.3 in decoder                  |
+| **Batch norm momentum** | Default (0.1) | 0.01-0.05                           |
+| **Activation**          | ReLU          | **LeakyReLU or Mish**               |
+| **Weight init**         | Default       | **He/Kaiming initialization**       |
 
 ---
 
@@ -105,6 +108,7 @@ total_loss = (
 **What papers DON'T mention at all**:
 
 1. **Warm-up phase**
+
    ```python
    # First 10 epochs at 10% learning rate
    for epoch in range(10):
@@ -112,11 +116,13 @@ total_loss = (
    ```
 
 2. **Gradient clipping**
+
    ```python
    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
    ```
 
 3. **Test-time augmentation (TTA)**
+
    ```python
    # At inference, predict on 8 augmented versions
    pred = average([
@@ -129,6 +135,7 @@ total_loss = (
    ```
 
 4. **Post-processing**
+
    ```python
    # Morphological operations
    pred = remove_small_objects(pred, min_size=100)
@@ -136,6 +143,7 @@ total_loss = (
    ```
 
 5. **CRF refinement** (Conditional Random Fields)
+
    - Smooths boundaries using image intensity
    - Can improve Dice by 1-2%
 
@@ -158,13 +166,13 @@ total_loss = (
 
 ### **What Papers Write vs. What They Mean**
 
-| What Paper Says | What They Actually Did |
-|-----------------|------------------------|
-| "Standard data augmentation" | 10+ augmentation types with p=0.7 |
-| "We used Dice loss" | Focal Tversky + Dice + BCE with deep supervision |
-| "Trained for 100 epochs" | Trained for 300 epochs, report result from epoch 247 |
-| "Adam optimizer with lr=0.0001" | Used warm-up, cosine annealing, and 5 LR reductions |
-| "Implemented in PyTorch" | Used 4x V100 GPUs, mixed precision, gradient accumulation |
+| What Paper Says                 | What They Actually Did                                    |
+| ------------------------------- | --------------------------------------------------------- |
+| "Standard data augmentation"    | 10+ augmentation types with p=0.7                         |
+| "We used Dice loss"             | Focal Tversky + Dice + BCE with deep supervision          |
+| "Trained for 100 epochs"        | Trained for 300 epochs, report result from epoch 247      |
+| "Adam optimizer with lr=0.0001" | Used warm-up, cosine annealing, and 5 LR reductions       |
+| "Implemented in PyTorch"        | Used 4x V100 GPUs, mixed precision, gradient accumulation |
 
 ---
 
@@ -173,6 +181,7 @@ total_loss = (
 ### **Immediate Fixes (Will Get You to 70-85% Dice)**
 
 1. **Add aggressive augmentation**
+
    ```python
    A.ElasticTransform(alpha=120, sigma=120*0.05, alpha_affine=120*0.03, p=0.5)
    A.GridDistortion(num_steps=5, distort_limit=0.3, p=0.3)
@@ -180,6 +189,7 @@ total_loss = (
    ```
 
 2. **Increase training duration**
+
    ```yaml
    num_epochs: 250
    patience: 40
@@ -206,15 +216,15 @@ total_loss = (
 
 ## 📊 **Expected Timeline**
 
-| Stage | Dice Score | Time Required |
-|-------|------------|---------------|
-| Current (basic setup) | 20-30% | - |
-| + Aggressive augmentation | 50-70% | 1-2 days training |
-| + Longer training (250 epochs) | 70-85% | 3-5 days training |
-| + Focal Tversky Loss | 75-88% | 3-5 days training |
-| + Pre-trained encoder | 85-92% | 2-3 days training |
-| + TTA + Post-processing | 90-95% | 1 day inference |
-| + Ensemble | 95-97% | 1 week total |
+| Stage                          | Dice Score | Time Required     |
+| ------------------------------ | ---------- | ----------------- |
+| Current (basic setup)          | 20-30%     | -                 |
+| + Aggressive augmentation      | 50-70%     | 1-2 days training |
+| + Longer training (250 epochs) | 70-85%     | 3-5 days training |
+| + Focal Tversky Loss           | 75-88%     | 3-5 days training |
+| + Pre-trained encoder          | 85-92%     | 2-3 days training |
+| + TTA + Post-processing        | 90-95%     | 1 day inference   |
+| + Ensemble                     | 95-97%     | 1 week total      |
 
 **Papers spend 2-3 months getting to 97%.**  
 **You're on day 1-2.**
@@ -224,11 +234,13 @@ total_loss = (
 ## 💡 **Key Takeaway**
 
 Your 18-30% Dice is **NOT** because:
+
 - ❌ Task is impossible
 - ❌ Your understanding is wrong
 - ❌ Dice is the wrong metric
 
 It's because:
+
 - ✅ You're using basic setup vs. papers' fully-optimized pipeline
 - ✅ Papers hide 90% of their implementation details
 - ✅ You need **aggressive augmentation** (most critical)
