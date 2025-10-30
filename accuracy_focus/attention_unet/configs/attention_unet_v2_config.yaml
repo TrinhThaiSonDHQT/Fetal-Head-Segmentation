@@ -42,6 +42,7 @@ training:
 # Loss Function
 loss:
   name: 'DiceLoss'
+  smooth: 1.0e-6
 
 # Logging and Checkpointing
 logging:
