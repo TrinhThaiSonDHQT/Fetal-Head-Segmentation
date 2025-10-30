@@ -8,6 +8,33 @@ This is what papers actually use but don't fully disclose.
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 import numpy as np
+import warnings
+
+
+def _get_gaussian_noise():
+    """
+    Returns GaussNoise with parameters compatible across Albumentations versions.
+    - Albumentations >=1.4: uses noise_scale_factor
+    - Albumentations <1.4: uses var_limit
+    """
+    try:
+        # Try new API (Albumentations >=1.4)
+        return A.GaussNoise(noise_scale_factor=(0.03, 0.15), p=0.3)
+    except TypeError:
+        # Fall back to old API (Albumentations <1.4)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            return A.GaussNoise(var_limit=(10.0, 50.0), mean=0, p=0.3)
+
+
+def _get_gaussian_noise_medium():
+    """Returns GaussNoise for medium augmentation (compatible across versions)."""
+    try:
+        return A.GaussNoise(noise_scale_factor=(0.03, 0.10), p=0.2)
+    except TypeError:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            return A.GaussNoise(var_limit=(10.0, 30.0), mean=0, p=0.2)
 
 
 def get_aggressive_transforms(height=256, width=256, is_train=True):
@@ -73,10 +100,8 @@ def get_aggressive_transforms(height=256, width=256, is_train=True):
             # (Applied to image only, not mask)
             
             # Gaussian noise (simulates sensor noise)
-            A.GaussNoise(
-                var_limit=(10.0, 50.0),  # Variance range
-                p=0.3
-            ),
+            # Uses version-compatible helper function
+            _get_gaussian_noise(),
             
             # Gaussian blur (simulates focus issues)
             A.GaussianBlur(
@@ -145,7 +170,7 @@ def get_medium_transforms(height=256, width=256, is_train=True):
             A.ElasticTransform(alpha=120, sigma=6, p=0.4),
             
             # Light intensity augmentation
-            A.GaussNoise(var_limit=(10.0, 30.0), p=0.2),
+            _get_gaussian_noise_medium(),
             A.RandomBrightnessContrast(brightness_limit=0.15, contrast_limit=0.15, p=0.2),
             
             A.Normalize(mean=(0.0,), std=(1.0,), max_pixel_value=255.0),
