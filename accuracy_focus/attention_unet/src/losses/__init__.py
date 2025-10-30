@@ -2,7 +2,7 @@
 
 from .dice_loss import DiceLoss
 from .dice_bce_loss import DiceBCELoss
-from .bce_logits import BCEWithLogitsLoss
+from .bce_logits import BCEWithLogitsBalancedLoss, DiceBCEWithLogitsLoss
 from .focal_tversky_loss import (
     FocalTverskyLoss,
     CombinedFocalTverskyLoss,
@@ -12,7 +12,8 @@ from .focal_tversky_loss import (
 __all__ = [
     'DiceLoss',
     'DiceBCELoss',
-    'BCEWithLogitsLoss',
+    'BCEWithLogitsBalancedLoss',
+    'DiceBCEWithLogitsLoss',
     'FocalTverskyLoss',
     'CombinedFocalTverskyLoss',
     'get_loss_function'
