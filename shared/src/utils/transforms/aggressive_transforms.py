@@ -45,11 +45,11 @@ def get_aggressive_transforms(height=256, width=256, is_train=True):
             # Rotation
             A.Rotate(limit=20, p=0.7),  # INCREASED probability from 0.5
             
-            # Shift, scale, rotate
-            A.ShiftScaleRotate(
-                shift_limit=0.15,    # INCREASED from 0.1
-                scale_limit=0.15,    # INCREASED from 0.1
-                rotate_limit=0,
+            # Shift and scale (using Affine instead of deprecated ShiftScaleRotate)
+            A.Affine(
+                translate_percent={'x': (-0.15, 0.15), 'y': (-0.15, 0.15)},  # INCREASED from 0.1
+                scale=(0.85, 1.15),    # INCREASED from 0.1
+                rotate=0,
                 p=0.7               # INCREASED from 0.5
             ),
             
@@ -58,7 +58,6 @@ def get_aggressive_transforms(height=256, width=256, is_train=True):
             A.ElasticTransform(
                 alpha=120,
                 sigma=120 * 0.05,
-                alpha_affine=120 * 0.03,
                 p=0.5  # 50% chance - very important
             ),
             
@@ -76,7 +75,6 @@ def get_aggressive_transforms(height=256, width=256, is_train=True):
             # Gaussian noise (simulates sensor noise)
             A.GaussNoise(
                 var_limit=(10.0, 50.0),  # Variance range
-                mean=0,
                 p=0.3
             ),
             
@@ -136,10 +134,15 @@ def get_medium_transforms(height=256, width=256, is_train=True):
             A.HorizontalFlip(p=0.5),
             A.VerticalFlip(p=0.5),
             A.Rotate(limit=20, p=0.6),
-            A.ShiftScaleRotate(shift_limit=0.12, scale_limit=0.12, rotate_limit=0, p=0.6),
+            A.Affine(
+                translate_percent={'x': (-0.12, 0.12), 'y': (-0.12, 0.12)},
+                scale=(0.88, 1.12),
+                rotate=0,
+                p=0.6
+            ),
             
             # Elastic only (most important)
-            A.ElasticTransform(alpha=120, sigma=120*0.05, alpha_affine=120*0.03, p=0.4),
+            A.ElasticTransform(alpha=120, sigma=6, p=0.4),
             
             # Light intensity augmentation
             A.GaussNoise(var_limit=(10.0, 30.0), p=0.2),
