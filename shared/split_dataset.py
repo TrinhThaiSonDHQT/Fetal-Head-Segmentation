@@ -1,13 +1,16 @@
 """
 Split dataset from /shared/dataset/images into training and validation sets
-Organizes into /shared/dataset structure with 80/20 split
+Organizes into /shared/dataset_v2 structure with 80/20 split
 INCLUDES ALL IMAGE VARIANTS (e.g., 10_HC, 10_2HC, 10_3HC, etc.)
+Creates binary masks with filled white regions from annotation outlines
 """
 import os
 import shutil
 from pathlib import Path
 from sklearn.model_selection import train_test_split
 import random
+import cv2
+import numpy as np
 
 # Set random seed for reproducibility
 RANDOM_SEED = 42
@@ -15,7 +18,7 @@ random.seed(RANDOM_SEED)
 
 # Define paths
 SOURCE_DIR = Path(__file__).parent / "dataset" / "images"
-TARGET_DIR = Path(__file__).parent / "dataset"
+TARGET_DIR = Path(__file__).parent / "dataset_v2"
 TRAIN_DIR = TARGET_DIR / "training_set"
 VAL_DIR = TARGET_DIR / "validation_set"
 
@@ -51,9 +54,40 @@ def create_directories():
         (subset_dir / "masks").mkdir(parents=True, exist_ok=True)
     print(f"Created directory structure in {TARGET_DIR}")
 
+def create_filled_mask(annotation_path):
+    """
+    Create a binary mask with filled white region from annotation outline
+    
+    Args:
+        annotation_path: Path to the annotation file (outline)
+    
+    Returns:
+        Binary mask (numpy array) with white (255) filled region
+    """
+    # Read annotation image (grayscale)
+    annotation = cv2.imread(str(annotation_path), cv2.IMREAD_GRAYSCALE)
+    
+    if annotation is None:
+        raise ValueError(f"Could not read annotation file: {annotation_path}")
+    
+    # Threshold to get binary outline (in case it's not pure binary)
+    _, binary_outline = cv2.threshold(annotation, 127, 255, cv2.THRESH_BINARY)
+    
+    # Find contours in the outline
+    contours, _ = cv2.findContours(binary_outline, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    # Create empty mask (all black)
+    filled_mask = np.zeros_like(annotation)
+    
+    # Fill all contours with white (255)
+    if len(contours) > 0:
+        cv2.drawContours(filled_mask, contours, -1, 255, thickness=cv2.FILLED)
+    
+    return filled_mask
+
 def copy_files(base_names, split_type):
     """
-    Copy image and mask files to appropriate directories
+    Copy image files and create filled binary masks
     
     Args:
         base_names: List of base filenames (e.g., ["000_HC", "010_2HC", ...])
@@ -63,6 +97,7 @@ def copy_files(base_names, split_type):
     
     copied_count = 0
     missing_files = []
+    processing_errors = []
     
     for base_name in base_names:
         # Source files
@@ -73,24 +108,42 @@ def copy_files(base_names, split_type):
         img_dst = target_dir / "images" / f"{base_name}.png"
         mask_dst = target_dir / "masks" / f"{base_name}_Annotation.png"
         
-        # Copy files
-        if img_src.exists() and mask_src.exists():
-            shutil.copy2(img_src, img_dst)
-            shutil.copy2(mask_src, mask_dst)
-            copied_count += 1
-        else:
+        # Check if source files exist
+        if not (img_src.exists() and mask_src.exists()):
             missing_files.append(base_name)
+            continue
+        
+        try:
+            # Copy original image
+            shutil.copy2(img_src, img_dst)
+            
+            # Create filled binary mask from annotation outline
+            filled_mask = create_filled_mask(mask_src)
+            
+            # Save the filled mask
+            cv2.imwrite(str(mask_dst), filled_mask)
+            
+            copied_count += 1
+            
+        except Exception as e:
+            processing_errors.append((base_name, str(e)))
     
     if missing_files:
         print(f"Warning: Missing files for {len(missing_files)} samples: {missing_files[:5]}...")
+    
+    if processing_errors:
+        print(f"Warning: Processing errors for {len(processing_errors)} samples:")
+        for name, error in processing_errors[:5]:
+            print(f"  - {name}: {error}")
     
     print(f"Copied {copied_count} image pairs to {split_type} set")
     return copied_count
 
 def main():
     print("="*60)
-    print("Dataset Split Tool v3 - 80/20 Train/Val Split")
+    print("Dataset Split Tool v4 - 80/20 Train/Val Split")
     print("Includes ALL image variants (e.g., xxx_2HC, xxx_3HC, etc.)")
+    print("Creates filled binary masks from annotation outlines")
     print("="*60)
     
     # Get all image pairs (including all variants)

@@ -3,17 +3,10 @@
 
 # Data Paths (Updated for new structure)
 data:
-  # train_images: 'shared/dataset/training_set/images'
-  # train_masks: 'shared/dataset/training_set/masks'
-  # val_images: 'shared/dataset/validation_set/images'
-  # val_masks: 'shared/dataset/validation_set/masks'
   train_images: 'shared/dataset_v2/training_set/images'
   train_masks: 'shared/dataset_v2/training_set/masks'
   val_images: 'shared/dataset_v2/validation_set/images'
   val_masks: 'shared/dataset_v2/validation_set/masks'
-
-  # test_images: 'shared/dataset/test_set/images'
-  # test_masks: 'shared/dataset/test_set/masks'
 
 # Model Architecture
 model:
@@ -60,7 +53,7 @@ logging:
   log_dir: 'accuracy_focus/standard_unet/results/logs'
   prediction_dir: 'accuracy_focus/standard_unet/results/predictions'
   visualization_dir: 'accuracy_focus/standard_unet/results/visualizations'
-  save_every_n_epochs: 10
+  save_every_n_epochs: 5
   save_best_only: true
   visualize_every_n_epochs: 5
 
