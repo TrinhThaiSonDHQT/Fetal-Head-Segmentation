@@ -22,7 +22,7 @@ training:
   num_epochs: 55
   num_workers: 2
   pin_memory: true
-  early_stopping_patience: 13
+  early_stopping_patience: 15
 
   # Optimizer
   optimizer:
@@ -44,8 +44,8 @@ training:
 # Loss Function
 loss:
   name: 'DiceBCELoss'
-  dice_weight: 0.7
-  bce_weight: 0.3
+  dice_weight: 0.8
+  bce_weight: 0.2
   smooth: 1.0e-6
 
 # Logging and Checkpointing
