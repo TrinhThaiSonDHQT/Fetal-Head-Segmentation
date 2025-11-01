@@ -1,6 +1,6 @@
 """
-Split dataset from /shared/dataset/images into training and validation sets
-Organizes into /shared/dataset_v2 structure with 80/20 split
+Split dataset from /shared/dataset/images into training, validation, and test sets
+Organizes into /shared/dataset_v3 structure with 80/5/15 split
 INCLUDES ALL IMAGE VARIANTS (e.g., 10_HC, 10_2HC, 10_3HC, etc.)
 Creates binary masks with filled white regions from annotation outlines
 """
@@ -18,13 +18,15 @@ random.seed(RANDOM_SEED)
 
 # Define paths
 SOURCE_DIR = Path(__file__).parent / "dataset" / "images"
-TARGET_DIR = Path(__file__).parent / "dataset_v2"
+TARGET_DIR = Path(__file__).parent / "dataset_v3"
 TRAIN_DIR = TARGET_DIR / "training_set"
 VAL_DIR = TARGET_DIR / "validation_set"
+TEST_DIR = TARGET_DIR / "test_set"
 
 # Split ratio
 TRAIN_RATIO = 0.8
-VAL_RATIO = 0.2
+VAL_RATIO = 0.05
+TEST_RATIO = 0.15
 
 def get_all_image_pairs(source_dir):
     """
@@ -49,7 +51,7 @@ def get_all_image_pairs(source_dir):
 
 def create_directories():
     """Create target directory structure"""
-    for subset_dir in [TRAIN_DIR, VAL_DIR]:
+    for subset_dir in [TRAIN_DIR, VAL_DIR, TEST_DIR]:
         (subset_dir / "images").mkdir(parents=True, exist_ok=True)
         (subset_dir / "masks").mkdir(parents=True, exist_ok=True)
     print(f"Created directory structure in {TARGET_DIR}")
@@ -91,9 +93,14 @@ def copy_files(base_names, split_type):
     
     Args:
         base_names: List of base filenames (e.g., ["000_HC", "010_2HC", ...])
-        split_type: "train" or "val"
+        split_type: "train", "val", or "test"
     """
-    target_dir = TRAIN_DIR if split_type == "train" else VAL_DIR
+    if split_type == "train":
+        target_dir = TRAIN_DIR
+    elif split_type == "val":
+        target_dir = VAL_DIR
+    else:
+        target_dir = TEST_DIR
     
     copied_count = 0
     missing_files = []
@@ -141,7 +148,7 @@ def copy_files(base_names, split_type):
 
 def main():
     print("="*60)
-    print("Dataset Split Tool v4 - 80/20 Train/Val Split")
+    print("Dataset Split Tool v3 - 80/5/15 Train/Val/Test Split")
     print("Includes ALL image variants (e.g., xxx_2HC, xxx_3HC, etc.)")
     print("Creates filled binary masks from annotation outlines")
     print("="*60)
@@ -149,11 +156,23 @@ def main():
     # Get all image pairs (including all variants)
     base_names = get_all_image_pairs(SOURCE_DIR)
     
-    # Split into train and validation (80/20)
-    train_names, val_names = train_test_split(
+    # Split into train, validation, and test sets
+    # First split: 80% train, 20% temp (val + test)
+    train_names, temp_names = train_test_split(
         base_names, 
         train_size=TRAIN_RATIO,
-        test_size=VAL_RATIO,
+        test_size=(VAL_RATIO + TEST_RATIO),
+        random_state=RANDOM_SEED,
+        shuffle=True
+    )
+    
+    # Second split: from temp, split into val and test
+    # val_ratio_adjusted = VAL_RATIO / (VAL_RATIO + TEST_RATIO) = 0.05 / 0.20 = 0.25
+    val_ratio_adjusted = VAL_RATIO / (VAL_RATIO + TEST_RATIO)
+    val_names, test_names = train_test_split(
+        temp_names,
+        train_size=val_ratio_adjusted,
+        test_size=(1 - val_ratio_adjusted),
         random_state=RANDOM_SEED,
         shuffle=True
     )
@@ -161,6 +180,7 @@ def main():
     print(f"\nSplit summary:")
     print(f"  Training set: {len(train_names)} images ({len(train_names)/len(base_names)*100:.1f}%)")
     print(f"  Validation set: {len(val_names)} images ({len(val_names)/len(base_names)*100:.1f}%)")
+    print(f"  Test set: {len(test_names)} images ({len(test_names)/len(base_names)*100:.1f}%)")
     
     # Create directory structure
     print(f"\nCreating directory structure...")
@@ -170,6 +190,7 @@ def main():
     print(f"\nCopying files...")
     train_count = copy_files(train_names, "train")
     val_count = copy_files(val_names, "val")
+    test_count = copy_files(test_names, "test")
     
     # Summary
     print("\n" + "="*60)
@@ -179,7 +200,9 @@ def main():
     print(f"  Location: {TRAIN_DIR}")
     print(f"Validation set: {val_count} image pairs")
     print(f"  Location: {VAL_DIR}")
-    print(f"\nTotal: {train_count + val_count} image pairs processed")
+    print(f"Test set: {test_count} image pairs")
+    print(f"  Location: {TEST_DIR}")
+    print(f"\nTotal: {train_count + val_count + test_count} image pairs processed")
     print("="*60)
 
 if __name__ == "__main__":
