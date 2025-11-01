@@ -19,7 +19,7 @@ model:
 # Training Hyperparameters
 training:
   batch_size: 16
-  num_epochs: 100
+  num_epochs: 55
   num_workers: 2
   pin_memory: true
   early_stopping_patience: 13
