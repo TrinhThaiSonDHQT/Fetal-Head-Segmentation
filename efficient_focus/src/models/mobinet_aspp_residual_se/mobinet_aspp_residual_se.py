@@ -28,18 +28,11 @@ Reference:
 import torch
 import torch.nn as nn
 import torchvision.models as models
-import sys
-import os
 
-# Add parent models directory to path for importing sibling modules
-current_dir = os.path.dirname(os.path.abspath(__file__))
-models_dir = os.path.dirname(current_dir)
-if models_dir not in sys.path:
-    sys.path.insert(0, models_dir)
-
-from residual_block import ResidualBlockSE
-from se_block import SEBlock
-from aspp import ASPP
+# Use proper relative imports from parent package
+from ..residual_block import ResidualBlockSE
+from ..se_block import SEBlock
+from ..aspp import ASPP
 
 
 class MobileNetV2ASPPResidualSEUNet(nn.Module):
