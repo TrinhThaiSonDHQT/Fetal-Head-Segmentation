@@ -19,17 +19,20 @@ class HC18Dataset(Dataset):
         image_dir (str): Path to directory containing ultrasound images
         mask_dir (str): Path to directory containing segmentation masks
         transform (callable, optional): Albumentations transform to apply to images and masks
+        image_size (tuple[int, int], optional): Target size (width, height) for resizing. Default: (256, 256)
     """
     
     def __init__(
         self,
         image_dir: str,
         mask_dir: str,
-        transform: Optional[Callable] = None
+        transform: Optional[Callable] = None,
+        image_size: tuple[int, int] = (256, 256)
     ):
         self.image_dir = image_dir
         self.mask_dir = mask_dir
         self.transform = transform
+        self.image_size = image_size
         
         # Get sorted list of image filenames (excluding masks)
         all_files = sorted([
@@ -111,9 +114,9 @@ class HC18Dataset(Dataset):
             mask = (mask > 0.5).float()
         else:
             # Manual preprocessing without Albumentations
-            # Resize to 256x256
-            image = cv2.resize(image, (256, 256))
-            mask = cv2.resize(mask, (256, 256))
+            # Resize to specified image_size
+            image = cv2.resize(image, self.image_size)
+            mask = cv2.resize(mask, self.image_size)
             
             # Normalize image to [0, 1]
             image = image.astype(np.float32) / 255.0

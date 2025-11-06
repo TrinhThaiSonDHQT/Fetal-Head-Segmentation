@@ -60,12 +60,6 @@ logging:
   save_best_only: true
   visualize_every_n_epochs: 5
 
-# Target Performance Metrics
-target_metrics:
-  dice: 0.9781 # DSC ≥97.81%
-  iou: 0.9790 # mIoU ≥97.90%
-  pixel_accuracy: 0.9918 # mPA ≥99.18%
-
 # Device
 device: 'cuda' # 'cuda' or 'cpu'
 

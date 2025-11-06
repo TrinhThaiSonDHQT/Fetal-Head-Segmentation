@@ -1,24 +1,28 @@
 """
 Standard MobileNetV2-Based U-Net
 
-A simple U-Net architecture using MobileNetV2 as the encoder backbone.
-No additional techniques (no ASPP, no SE blocks, no residual connections).
-Just basic encoder-decoder with skip connections.
+A U-Net architecture where the encoder is replaced with MobileNetV2 backbone,
+while the decoder uses standard U-Net blocks with channels [512, 256, 128, 64, 64].
 
-Architecture:
-    - Encoder: MobileNetV2 backbone (pre-trained on ImageNet, frozen for transfer learning)
-    - Decoder: 5 upsampling stages with simple conv blocks
-    - Skip connections: Direct concatenation without attention
+Architecture (as per paper):
+    - Encoder: MobileNetV2 backbone (pre-trained on ImageNet)
+      - Extracts features at: 16, 24, 32, 96 channels (at 1/2, 1/4, 1/8, 1/16 resolution)
+      - Final bottleneck: 1280 channels at 1/32 resolution
+    - Decoder: Standard U-Net decoder with channels [512, 256, 128, 64, 64]
+    - Skip connections: Direct concatenation from encoder to decoder
 
 Key Features:
-    - Simple and straightforward architecture
-    - Efficient: MobileNetV2 uses depthwise separable convolutions
+    - Encoder: MobileNetV2 uses depthwise separable convolutions (efficient)
+    - Decoder: Standard U-Net conv blocks with [512, 256, 128, 64, 64] feature maps
     - Transfer Learning: Pre-trained weights from ImageNet
-    - Fast Training: Frozen encoder reduces trainable parameters
+    - Efficient: Reduced parameters while maintaining accuracy
 
 Reference:
     - MobileNetV2: Sandler, M., et al. (2018). MobileNetV2: Inverted Residuals
       and Linear Bottlenecks. CVPR 2018.
+    - Paper: "Our baseline network is U-Net with input features [64, 128, 256, 512],
+      and we replace its encoder with a pre-trained low computationally demanding
+      model, MobileNet v2."
 """
 import torch
 import torch.nn as nn
@@ -50,20 +54,26 @@ class ConvBlock(nn.Module):
 
 class StandardMobileNetV2UNet(nn.Module):
     """
-    Standard MobileNetV2-based U-Net without additional techniques.
+    Standard MobileNetV2-based U-Net as per paper architecture.
     
     Architecture Overview:
-        - Encoder: MobileNetV2 (pre-trained, frozen)
-        - Decoder: 5 stages with simple ConvBlock
-        - Skip connections: Direct concatenation
+        - Encoder: MobileNetV2 (pre-trained on ImageNet)
+        - Decoder: Standard U-Net blocks with channels [512, 256, 128, 64, 64]
+        - Skip connections: Direct concatenation from encoder to decoder
     
-    MobileNetV2 Feature Extraction Points:
-        - Initial Conv (custom): 32 channels  @ H×W     (full resolution, trainable)
+    MobileNetV2 Feature Extraction Points (Encoder):
         - Block 1: features[1]   -> 16 channels  @ H/2×W/2
         - Block 3: features[3]   -> 24 channels  @ H/4×W/4
         - Block 6: features[6]   -> 32 channels  @ H/8×W/8
         - Block 13: features[13] -> 96 channels  @ H/16×W/16
         - Block 18: features[18] -> 1280 channels @ H/32×W/32
+    
+    Decoder Channel Progression:
+        - Stage 5: 1280 -> 512 (1/32 -> 1/16)
+        - Stage 4: 512 -> 256 (1/16 -> 1/8)
+        - Stage 3: 256 -> 128 (1/8 -> 1/4)
+        - Stage 2: 128 -> 64 (1/4 -> 1/2)
+        - Stage 1: 64 -> 64 (1/2 -> 1/1)
     
     Args:
         in_channels (int): Number of input channels (default=1 for grayscale)
@@ -118,53 +128,42 @@ class StandardMobileNetV2UNet(nn.Module):
             for param in self.encoder.parameters():
                 param.requires_grad = False
         
-        # Initial conv layer (maintains full resolution) for first skip connection
-        self.init_conv = nn.Sequential(
-            nn.Conv2d(in_channels, 32, kernel_size=3, padding=1, bias=False),
-            nn.BatchNorm2d(32),
-            nn.ReLU(inplace=True)
-        )
-        
-        # MobileNetV2 channel counts at different stages
-        # Resolutions: [1/1, 1/2, 1/4, 1/8, 1/16, 1/32]
-        self.encoder_channels = [32, 16, 24, 32, 96, 1280]
-        
-        # ==================== BOTTLENECK ====================
-        # Simple bottleneck conv block
-        self.bottleneck = ConvBlock(self.encoder_channels[5], 512)
+        # MobileNetV2 encoder channel counts at different stages
+        # Skip connections from: [16, 24, 32, 96] at resolutions [1/2, 1/4, 1/8, 1/16]
+        # Bottleneck: 1280 at resolution 1/32
+        self.encoder_channels = [16, 24, 32, 96, 1280]
         
         # ==================== DECODER ====================
-        # Decoder channel progression - 5 stages to match encoder
-        # [1/32 -> 1/16 -> 1/8 -> 1/4 -> 1/2 -> 1/1]
-        decoder_channels = [256, 128, 64, 32, 32]
+        # Decoder follows standard U-Net with channels [64, 128, 256, 512]
+        # As per paper: "baseline network is U-Net with input features [64, 128, 256, 512]"
         
-        # Decoder stage 5 (1/32 -> 1/16)
-        self.up5 = nn.ConvTranspose2d(512, decoder_channels[0], kernel_size=2, stride=2)
-        # Input: 256 (upsampled) + 96 (skip from enc4) = 352
-        self.dec5 = ConvBlock(decoder_channels[0] + self.encoder_channels[4], decoder_channels[0])
+        # Decoder stage 5 (1/32 -> 1/16): 1280 -> 512
+        self.up5 = nn.ConvTranspose2d(1280, 512, kernel_size=2, stride=2)
+        # Input: 512 (upsampled) + 96 (skip from enc4) = 608
+        self.dec5 = ConvBlock(512 + 96, 512)
         
-        # Decoder stage 4 (1/16 -> 1/8)
-        self.up4 = nn.ConvTranspose2d(decoder_channels[0], decoder_channels[1], kernel_size=2, stride=2)
-        # Input: 128 (upsampled) + 32 (skip from enc3) = 160
-        self.dec4 = ConvBlock(decoder_channels[1] + self.encoder_channels[3], decoder_channels[1])
+        # Decoder stage 4 (1/16 -> 1/8): 512 -> 256
+        self.up4 = nn.ConvTranspose2d(512, 256, kernel_size=2, stride=2)
+        # Input: 256 (upsampled) + 32 (skip from enc3) = 288
+        self.dec4 = ConvBlock(256 + 32, 256)
         
-        # Decoder stage 3 (1/8 -> 1/4)
-        self.up3 = nn.ConvTranspose2d(decoder_channels[1], decoder_channels[2], kernel_size=2, stride=2)
-        # Input: 64 (upsampled) + 24 (skip from enc2) = 88
-        self.dec3 = ConvBlock(decoder_channels[2] + self.encoder_channels[2], decoder_channels[2])
+        # Decoder stage 3 (1/8 -> 1/4): 256 -> 128
+        self.up3 = nn.ConvTranspose2d(256, 128, kernel_size=2, stride=2)
+        # Input: 128 (upsampled) + 24 (skip from enc2) = 152
+        self.dec3 = ConvBlock(128 + 24, 128)
         
-        # Decoder stage 2 (1/4 -> 1/2)
-        self.up2 = nn.ConvTranspose2d(decoder_channels[2], decoder_channels[3], kernel_size=2, stride=2)
-        # Input: 32 (upsampled) + 16 (skip from enc1) = 48
-        self.dec2 = ConvBlock(decoder_channels[3] + self.encoder_channels[1], decoder_channels[3])
+        # Decoder stage 2 (1/4 -> 1/2): 128 -> 64
+        self.up2 = nn.ConvTranspose2d(128, 64, kernel_size=2, stride=2)
+        # Input: 64 (upsampled) + 16 (skip from enc1) = 80
+        self.dec2 = ConvBlock(64 + 16, 64)
         
-        # Decoder stage 1 (1/2 -> 1/1)
-        self.up1 = nn.ConvTranspose2d(decoder_channels[3], decoder_channels[4], kernel_size=2, stride=2)
-        # Input: 32 (upsampled) + 32 (skip from enc0) = 64
-        self.dec1 = ConvBlock(decoder_channels[4] + self.encoder_channels[0], decoder_channels[4])
+        # Decoder stage 1 (1/2 -> 1/1): 64 -> 64
+        self.up1 = nn.ConvTranspose2d(64, 64, kernel_size=2, stride=2)
+        # Input: 64 (upsampled only, no skip connection at full resolution)
+        self.dec1 = ConvBlock(64, 64)
         
         # ==================== OUTPUT ====================
-        self.out_conv = nn.Conv2d(decoder_channels[4], out_channels, kernel_size=1)
+        self.out_conv = nn.Conv2d(64, out_channels, kernel_size=1)
         self.sigmoid = nn.Sigmoid()
     
     def forward(self, x):
@@ -178,9 +177,6 @@ class StandardMobileNetV2UNet(nn.Module):
             torch.Tensor: Output segmentation map of shape (B, C_out, H, W)
         """
         # ==================== ENCODER (MobileNetV2) ====================
-        # Initial conv (maintains full resolution) - for first skip connection
-        enc0 = self.init_conv(x)  # (B, 32, H, W)
-        
         # Extract features at different scales from MobileNetV2
         # MobileNetV2 features indices: [1, 3, 6, 13, 18]
         encoder_features = []
@@ -194,41 +190,37 @@ class StandardMobileNetV2UNet(nn.Module):
         
         # Unpack encoder features
         enc1, enc2, enc3, enc4, enc5 = encoder_features
-        # enc0: (B, 32, H, W)        - from init_conv
         # enc1: (B, 16, H/2, W/2)    - from MobileNetV2 layer 1
         # enc2: (B, 24, H/4, W/4)    - from MobileNetV2 layer 3
         # enc3: (B, 32, H/8, W/8)    - from MobileNetV2 layer 6
         # enc4: (B, 96, H/16, W/16)  - from MobileNetV2 layer 13
-        # enc5: (B, 1280, H/32, W/32) - from MobileNetV2 layer 18
-        
-        # ==================== BOTTLENECK ====================
-        x = self.bottleneck(enc5)  # (B, 512, H/32, W/32)
+        # enc5: (B, 1280, H/32, W/32) - from MobileNetV2 layer 18 (bottleneck)
         
         # ==================== DECODER ====================
-        # Decoder stage 5 (1/32 -> 1/16)
-        x = self.up5(x)  # (B, 256, H/16, W/16)
-        x = torch.cat([x, enc4], dim=1)  # (B, 352, H/16, W/16)
-        x = self.dec5(x)  # (B, 256, H/16, W/16)
+        # Decoder stage 5 (1/32 -> 1/16): 1280 -> 512
+        x = self.up5(enc5)  # (B, 512, H/16, W/16)
+        x = torch.cat([x, enc4], dim=1)  # (B, 608, H/16, W/16)
+        x = self.dec5(x)  # (B, 512, H/16, W/16)
         
-        # Decoder stage 4 (1/16 -> 1/8)
-        x = self.up4(x)  # (B, 128, H/8, W/8)
-        x = torch.cat([x, enc3], dim=1)  # (B, 160, H/8, W/8)
-        x = self.dec4(x)  # (B, 128, H/8, W/8)
+        # Decoder stage 4 (1/16 -> 1/8): 512 -> 256
+        x = self.up4(x)  # (B, 256, H/8, W/8)
+        x = torch.cat([x, enc3], dim=1)  # (B, 288, H/8, W/8)
+        x = self.dec4(x)  # (B, 256, H/8, W/8)
         
-        # Decoder stage 3 (1/8 -> 1/4)
-        x = self.up3(x)  # (B, 64, H/4, W/4)
-        x = torch.cat([x, enc2], dim=1)  # (B, 88, H/4, W/4)
-        x = self.dec3(x)  # (B, 64, H/4, W/4)
+        # Decoder stage 3 (1/8 -> 1/4): 256 -> 128
+        x = self.up3(x)  # (B, 128, H/4, W/4)
+        x = torch.cat([x, enc2], dim=1)  # (B, 152, H/4, W/4)
+        x = self.dec3(x)  # (B, 128, H/4, W/4)
         
-        # Decoder stage 2 (1/4 -> 1/2)
-        x = self.up2(x)  # (B, 32, H/2, W/2)
-        x = torch.cat([x, enc1], dim=1)  # (B, 48, H/2, W/2)
-        x = self.dec2(x)  # (B, 32, H/2, W/2)
+        # Decoder stage 2 (1/4 -> 1/2): 128 -> 64
+        x = self.up2(x)  # (B, 64, H/2, W/2)
+        x = torch.cat([x, enc1], dim=1)  # (B, 80, H/2, W/2)
+        x = self.dec2(x)  # (B, 64, H/2, W/2)
         
-        # Decoder stage 1 (1/2 -> 1/1)
-        x = self.up1(x)  # (B, 32, H, W)
-        x = torch.cat([x, enc0], dim=1)  # (B, 64, H, W)
-        x = self.dec1(x)  # (B, 32, H, W)
+        # Decoder stage 1 (1/2 -> 1/1): 64 -> 64
+        x = self.up1(x)  # (B, 64, H, W)
+        # No skip connection at full resolution as per paper architecture
+        x = self.dec1(x)  # (B, 64, H, W)
         
         # ==================== OUTPUT ====================
         x = self.out_conv(x)  # (B, out_channels, H, W)
@@ -287,13 +279,15 @@ if __name__ == "__main__":
     
     # Architecture summary
     print("\nArchitecture Highlights:")
-    print("  • Encoder: MobileNetV2 (pre-trained on ImageNet, frozen)")
-    print("  • Bottleneck: Simple ConvBlock")
-    print("  • Decoder: 5 stages with simple ConvBlock")
-    print("  • Skip connections: Direct concatenation (no attention)")
+    print("  • Encoder: MobileNetV2 (pre-trained on ImageNet)")
+    print("    - Extracts features at: 16, 24, 32, 96, 1280 channels")
+    print("    - Resolutions: H/2, H/4, H/8, H/16, H/32")
+    print("  • Decoder: Standard U-Net blocks with channels [512, 256, 128, 64, 64]")
+    print("    - 5 upsampling stages: 512 -> 256 -> 128 -> 64 -> 64")
+    print("  • Skip connections: Direct concatenation from encoder to decoder")
     print("\nKey Advantages:")
-    print("  ✓ Simple: No complex modules, just basic encoder-decoder")
-    print("  ✓ Efficient: MobileNetV2 uses depthwise separable convolutions")
-    print("  ✓ Transfer Learning: Pre-trained weights from ImageNet")
-    print("  ✓ Fast Training: Frozen encoder reduces trainable parameters")
+    print("  ✓ Efficient: MobileNetV2 encoder uses depthwise separable convolutions")
+    print("  ✓ Transfer Learning: Pre-trained ImageNet weights")
+    print("  ✓ Standard U-Net decoder: Proven architecture with [512, 256, 128, 64, 64] channels")
+    print("  ✓ Fast Training: Frozen encoder option reduces trainable parameters")
     print("=" * 80)
