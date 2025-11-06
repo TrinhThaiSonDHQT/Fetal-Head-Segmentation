@@ -124,18 +124,19 @@ class MobileNetV2ASPPResidualSEUNet(nn.Module):
         )
         
         # MobileNetV2 channel counts at different stages
-        # We'll extract features at indices: [1, 3, 6, 13, 18]
+        # Extract features at indices: [1, 3, 6, 13, 18]
         # Plus init_conv provides the first skip connection (32 channels)
         # Resolutions: [1/1, 1/2, 1/4, 1/8, 1/16, 1/32]
+        # Note: MobileNetV2 downsamples to H/32 (8x8 for 256x256 input)
         self.encoder_channels = [32, 16, 24, 32, 96, 1280]
         
         # ==================== BOTTLENECK (ASPP) ====================
         # ASPP for multi-scale contextual feature extraction
-        # Input: 1280 channels from MobileNetV2's last block
+        # Input: 1280 channels from MobileNetV2's last block (layer 18)
         # Output: 512 channels (standard bottleneck size)
         self.bottleneck_channels = 512
         self.bottleneck_aspp = ASPP(
-            in_channels=self.encoder_channels[4],  # 1280
+            in_channels=self.encoder_channels[5],  # 1280 from layer 18
             out_channels=self.bottleneck_channels,  # 512
             atrous_rates=atrous_rates,
             dropout_rate=aspp_dropout,
@@ -143,19 +144,19 @@ class MobileNetV2ASPPResidualSEUNet(nn.Module):
         )
         
         # ==================== DECODER ====================
-        # Decoder channel progression - 5 stages to match 5 encoder downsampling ops
+        # Decoder channel progression - 5 stages to match encoder
         # [1/32 -> 1/16 -> 1/8 -> 1/4 -> 1/2 -> 1/1]
         decoder_channels = [256, 128, 64, 32, 32]
         
-        # Decoder stage 5 (1/32 -> 1/16)
+        # Decoder stage 5 (1/32 -> 1/16): Upsample from bottleneck
         self.up5 = nn.ConvTranspose2d(
             self.bottleneck_channels,  # 512
             decoder_channels[0],       # 256
             kernel_size=2,
             stride=2
         )
-        self.skip5_se = SEBlock(self.encoder_channels[4], reduction_ratio)  # 96 channels
-        # Input to dec5: 256 (upsampled) + 96 (skip) = 352
+        self.skip5_se = SEBlock(self.encoder_channels[4], reduction_ratio)  # 96 channels from layer 13
+        # Input to dec5: 256 (upsampled) + 96 (skip from enc4/layer13) = 352
         self.dec5 = ResidualBlockSE(
             decoder_channels[0] + self.encoder_channels[4],  # 352
             decoder_channels[0],                              # 256
