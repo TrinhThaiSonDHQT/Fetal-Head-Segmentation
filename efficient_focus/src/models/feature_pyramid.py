@@ -4,7 +4,7 @@ Feature Pyramid Module (FP) for Improved U-Net
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .improved_unet.scale_attention import ScaleAttentionModule
+from .se_block import SEBlock
 
 
 class FeaturePyramidModule(nn.Module):
@@ -42,7 +42,7 @@ class FeaturePyramidModule(nn.Module):
         )
         
         # Scale Attention Module
-        self.scale_attention = ScaleAttentionModule(out_channels, reduction_ratio=16)
+        self.scale_attention = SEBlock(out_channels, reduction_ratio=16)
     
     def forward(self, feature_list):
         """
