@@ -164,7 +164,7 @@ class StandardMobileNetV2UNet(nn.Module):
         
         # ==================== OUTPUT ====================
         self.out_conv = nn.Conv2d(64, out_channels, kernel_size=1)
-        self.sigmoid = nn.Sigmoid()
+        # Note: No sigmoid here - loss function (BCEWithLogitsLoss) applies it internally
     
     def forward(self, x):
         """
@@ -224,7 +224,7 @@ class StandardMobileNetV2UNet(nn.Module):
         
         # ==================== OUTPUT ====================
         x = self.out_conv(x)  # (B, out_channels, H, W)
-        x = self.sigmoid(x)
+        # Return raw logits (no sigmoid) - loss function handles activation
         
         return x
 

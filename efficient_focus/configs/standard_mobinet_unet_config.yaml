@@ -45,10 +45,12 @@ training:
 
 # Loss Function
 loss:
-  name: 'DiceBCELoss'
+  name: 'DiceBCEWithLogitsLoss'
   dice_weight: 0.8
   bce_weight: 0.2
   smooth: 1.0e-6
+  pos_weight: null # Auto-compute from first batch (recommended)
+  auto_weight: true # Enable auto pos_weight calculation
 
 # Logging and Checkpointing
 logging:
