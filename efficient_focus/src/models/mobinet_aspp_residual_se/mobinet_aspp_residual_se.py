@@ -225,7 +225,7 @@ class MobileNetV2ASPPResidualSEUNet(nn.Module):
         
         # ==================== OUTPUT ====================
         self.out_conv = nn.Conv2d(decoder_channels[4], out_channels, kernel_size=1)
-        self.sigmoid = nn.Sigmoid()
+        # self.sigmoid = nn.Sigmoid()
     
     def forward(self, x):
         """
@@ -298,7 +298,7 @@ class MobileNetV2ASPPResidualSEUNet(nn.Module):
         
         # ==================== OUTPUT ====================
         x = self.out_conv(x)  # (B, out_channels, H, W)
-        x = self.sigmoid(x)
+        # x = self.sigmoid(x)
         
         return x
 

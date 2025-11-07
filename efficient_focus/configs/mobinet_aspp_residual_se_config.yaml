@@ -27,7 +27,7 @@ model:
 # Training Hyperparameters
 training:
   batch_size: 16
-  num_epochs: 55
+  num_epochs: 100
   num_workers: 4
   pin_memory: true
   early_stopping_patience: 15
@@ -55,6 +55,8 @@ loss:
   dice_weight: 0.8
   bce_weight: 0.2
   smooth: 1.0e-6
+  pos_weight: null # Auto-compute from first batch
+  auto_weight: true # Enable auto pos_weight calculation
 
 # Logging and Checkpointing
 logging:

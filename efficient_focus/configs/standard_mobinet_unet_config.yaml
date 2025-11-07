@@ -49,7 +49,7 @@ loss:
   dice_weight: 0.8
   bce_weight: 0.2
   smooth: 1.0e-6
-  pos_weight: null # Auto-compute from first batch (recommended)
+  pos_weight: null # Auto-compute from first batch
   auto_weight: true # Enable auto pos_weight calculation
 
 # Logging and Checkpointing
