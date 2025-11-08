@@ -56,4 +56,5 @@ weights/
 *.log
 
 # Dataset (if needed)
-# shared/dataset/
+shared/dataset/
+shared/Large-Scale Annotation Dataset for Fetal Head Biometry/
