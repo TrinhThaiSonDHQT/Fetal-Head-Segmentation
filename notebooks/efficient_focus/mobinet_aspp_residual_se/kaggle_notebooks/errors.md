@@ -57,18 +57,11 @@ ImportError Traceback (most recent call last)
 12
 13
 
-/usr/local/lib/python3.11/dist-packages/PIL/ImageDraw.py in <module>
-37 from typing import cast
+/usr/local/lib/python3.11/dist-packages/PIL/ImageFont.py in <module>
 38
----> 39 from . import Image, ImageColor, ImageText
-40
-41 TYPE_CHECKING = False
+39 from . import Image
+---> 40 from .\_util import is_directory, is_path
+41
+42
 
-/usr/local/lib/python3.11/dist-packages/PIL/ImageText.py in <module>
-2
-3 from . import ImageFont
-----> 4 from .\_typing import \_Ink
-5
-6
-
-ImportError: cannot import name '\_Ink' from 'PIL.\_typing' (/usr/local/lib/python3.11/dist-packages/PIL/\_typing.py)
+ImportError: cannot import name 'is_directory' from 'PIL.\_util' (/usr/local/lib/python3.11/dist-packages/PIL/\_util.py)
