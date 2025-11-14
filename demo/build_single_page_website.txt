@@ -1,0 +1,100 @@
+Project Goal: Build a simple, single-page website to run a fetal head segmentation model (in .onnx format) entirely in the user's browser. The website will use ONNX Runtime Web and automatically choose the best execution provider (WebGPU, WebGL, or WASM).
+Core Technologies:
+•	HTML
+•	CSS
+•	JavaScript (ES6+)
+•	ONNX Runtime Web (loaded via CDN)
+Project Structure (3 files):
+1.	index.html (The page structure)
+2.	style.css (The page styling)
+3.	app.js (The application logic)
+________________________________________
+Key Assumptions 
+Before you begin, my .onnx model (which I will name model.onnx and place in the same folder) has these properties:
+1. Model Input 
+•	Input Name: input_model
+•	Input Shape: [1, 3, 256, 256] (This is a [Batch_Size, Channels, Height, Width] example.)
+•	Normalization: My model expects input pixels to be normalized. (e.g., "Normalized to [0, 1] by dividing by 255.0.")
+•	Data Type: float32
+2. Model Output 
+•	Output Name: output_model
+•	Output Shape: [1, 1, 256, 256] (This is a [Batch_Size, Classes, Height, Width] example.)
+•	Output Values: The output is a mask with raw pixel values. (e.g., "A sigmoid activation, with values between [0, 1].")
+________________________________________
+Detailed Instructions for Each File
+1. index.html
+Create an HTML file that:
+•	Includes a simple title (e.g., "Fetal Head Segmentation Demo").
+•	Links to style.css and app.js.
+•	Imports the ONNX Runtime Web library via CDN (use version 1.18.0).
+•	Contains a main container with:
+o	An <h1> title.
+o	An <input type="file" id="image-uploader" accept="image/*"> for uploading the image.
+o	A <button id="run-button"> to start the segmentation.
+o	A status area <p id="status"> to show messages (e.g., "Loading model...", "Running inference...").
+o	A <div> to hold the output, containing two <canvas> elements side-by-side:
+	<canvas id="original-canvas"></canvas> (to show the uploaded image).
+	<canvas id="mask-canvas"></canvas> (to show the segmentation mask).
+2. style.css
+Create a CSS file with simple, clean styling:
+•	Use box-sizing: border-box; and a nice font-family.
+•	Center the main content on the page (max-width: 800px; margin: auto;).
+•	Style the button and file input to be clear and usable.
+•	Style the status message.
+•	Style the canvas elements to have a thin border and set their max-width to 100% to be responsive.
+3. app.js
+This is the most important file. Create the JavaScript logic:
+1.	DOM References:
+o	Add an event listener to run the main code when the DOMContentLoaded event fires.
+o	Get references to all HTML elements (image-uploader, run-button, status, original-canvas, mask-canvas).
+2.	Global Variables:
+o	Define model and session variables at the top.
+o	Define the model's expected width and height (e.g., 256).
+3.	Main run() Function:
+o	This function will be the main entry point. It should be async.
+o	Load Model:
+	Wrap the model loading in a try...catch block.
+	Set status to "Loading model...".
+	Create the ONNX inference session: session = await ort.InferenceSession.create('./model.onnx', ...)
+	CRITICAL: In the create options, set the executionProviders to ['webgpu', 'webgl', 'wasm'].
+	Set status to "Model loaded! Ready to run."
+	Log the chosen provider: console.log("Running on provider:", session.executionProviders[0]);
+o	Add Event Listener:
+	Add a click event listener to run-button that calls an async function runInference().
+4.	runInference() Function:
+o	This async function is called when the button is clicked.
+o	Get Image: Get the selected file from image-uploader. Handle errors if no file is selected.
+o	Set status to "Processing image...".
+o	Pre-process Image: Call a helper function preprocessImage(file) that returns a ort.Tensor.
+o	Run Inference:
+	Set status to "Running inference...".
+	Create the inputs object (e.g., { "input": preprocessedTensor }).
+	Run the session: const results = await session.run(inputs);.
+	Get the output tensor: const outputTensor = results.output;.
+o	Post-process:
+	Set status to "Drawing mask...".
+	Call a helper function drawMask(outputTensor) to render the mask on the canvas.
+o	Set status to "Done!".
+5.	preprocessImage(file) Helper Function:
+o	This function must perform several steps:
+1.	Load the file into an Image object.
+2.	Draw this Image onto an in-memory canvas.
+3.	Draw the original image onto the visible original-canvas.
+4.	Resize the image on the in-memory canvas to the model's required [width, height].
+5.	Get the ImageData from the resized in-memory canvas.
+6.	Normalize and Format: Create a new Float32Array from the ImageData. Iterate through the pixels and arrange them into the correct tensor format (e.g., [1, 3, 256, 256]) and apply normalization (e.g., divide by 255.0).
+7.	Return a new ort.Tensor('float32', data, [1, 3, width, height]); (Use your model's exact shape).
+6.	drawMask(tensor) Helper Function:
+o	This function must take the raw output tensor and draw it on the mask-canvas.
+1.	Get the raw tensor.data.
+2.	Get the 2D context of mask-canvas.
+3.	Create a new ImageData object with the same [width, height] as the model output.
+4.	Iterate through the tensor.data. For each pixel:
+	Apply a threshold (e.g., if (value > 0.5)).
+	If the pixel is part of the mask, set the ImageData pixel to a color (e.g., Red: [255, 0, 0, 255]).
+	If not, make it transparent ([0, 0, 0, 0]).
+5.	Use ctx.putImageData(imageData, 0, 0) to draw the final mask.
+7.	Start:
+o	Call the main run() function to start the model loading process when the script first loads.
+
+
