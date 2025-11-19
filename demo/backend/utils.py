@@ -177,3 +177,33 @@ def apply_clahe(image, clip_limit=2.0, tile_grid_size=(8, 8)):
     clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
     enhanced = clahe.apply(image)
     return enhanced
+
+
+def calculate_confidence(probability_map, mask):
+    """
+    Calculate segmentation confidence based on probability values.
+    
+    Computes mean probability of pixels within the segmented region.
+    Higher values indicate more confident predictions.
+    
+    Args:
+        probability_map (np.ndarray): Probability map from model (H, W) with values [0, 1]
+        mask (np.ndarray): Binary mask (H, W) with values 0 or 255
+    
+    Returns:
+        float: Confidence score [0, 1]
+    """
+    # Convert mask to binary (0 or 1)
+    mask_binary = (mask > 127).astype(np.uint8)
+    
+    # Get probabilities within segmented region
+    if mask_binary.sum() == 0:
+        # No segmentation found
+        return 0.0
+    
+    segmented_probs = probability_map[mask_binary == 1]
+    
+    # Calculate mean probability (confidence)
+    confidence = float(np.mean(segmented_probs))
+    
+    return confidence

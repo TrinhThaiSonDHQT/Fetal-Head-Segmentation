@@ -67,6 +67,7 @@ def upload_image():
     
     Expects:
         - Form data with 'image' file field
+        - Optional 'use_tta' field (boolean, default: true)
     
     Returns:
         JSON with:
@@ -74,6 +75,8 @@ def upload_image():
         - original: Base64 encoded original image
         - segmentation: Base64 encoded overlay visualization
         - inference_time: Processing time in milliseconds
+        - tta_variance: (if TTA enabled) Prediction variance
+        - tta_confidence: (if TTA enabled) TTA-based confidence
         - error: Error message (if failed)
     """
     try:
@@ -92,6 +95,9 @@ def upload_image():
                 'error': 'No file selected'
             }), 400
         
+        # Get TTA flag (default: True)
+        use_tta = request.form.get('use_tta', 'true').lower() == 'true'
+        
         # Read image
         image = Image.open(file.stream)
         
@@ -102,13 +108,12 @@ def upload_image():
         # Convert to numpy for processing
         image_np = pil_to_numpy(image)
         
-        # Run inference
-        start_time = time.time()
-        result = inference_engine.predict(image_np)
-        inference_time = (time.time() - start_time) * 1000  # Convert to ms
+        # Run inference with validation (TTA enabled by default)
+        result = inference_engine.process_image(image_np, use_tta=use_tta)
         
         # Extract results
         mask = result['mask']  # Binary mask (H, W)
+        inference_time = result['inference_time']  # Time in ms
         
         # Create visualization overlay
         visualization = create_overlay(image_np, mask)
@@ -117,18 +122,32 @@ def upload_image():
         original_b64 = image_to_base64(image_np)
         segmentation_b64 = image_to_base64(visualization)
         
-        return jsonify({
+        response_data = {
             'success': True,
             'original': original_b64,
             'segmentation': segmentation_b64,
-            'inference_time': round(inference_time, 2)
-        })
+            'inference_time': round(inference_time, 2),
+            
+            # Add validation data
+            'is_valid_ultrasound': result['is_valid_ultrasound'],
+            'confidence_score': float(result['confidence_score']),
+            'quality_metrics': result['quality_metrics'],
+            'warnings': result['warnings']
+        }
+        
+        # Add TTA-specific metrics if used
+        if use_tta and 'tta_variance' in result:
+            response_data['tta_variance'] = result['tta_variance']
+            response_data['tta_confidence'] = result['tta_confidence']
+        
+        return jsonify(response_data)
     
     except Exception as e:
         print(f"Error processing image: {str(e)}")
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': str(e),
+            'warnings': ['An error occurred during processing']
         }), 500
 
 
@@ -172,8 +191,8 @@ def stream_demo():
                 
                 image_np = pil_to_numpy(image)
                 
-                # Run inference
-                result = inference_engine.predict(image_np)
+                # Run inference with validation
+                result = inference_engine.process_image(image_np)
                 mask = result['mask']
                 
                 # Create visualization overlay
@@ -183,13 +202,15 @@ def stream_demo():
                 original_b64 = image_to_base64(image_np)
                 segmentation_b64 = image_to_base64(visualization)
                 
-                # Send frame event
+                # Send frame event with validation data
                 event_data = {
                     'type': 'frame',
                     'original': original_b64,
                     'segmentation': segmentation_b64,
                     'frame_number': idx + 1,
-                    'total_frames': len(frame_files)
+                    'total_frames': len(frame_files),
+                    'confidence_score': float(result['confidence_score']),
+                    'warnings': result['warnings']
                 }
                 
                 yield f"data: {json.dumps(event_data)}\n\n"
