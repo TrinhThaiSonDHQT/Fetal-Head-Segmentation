@@ -28,6 +28,7 @@ Reference:
 import torch
 import torch.nn as nn
 import torchvision.models as models
+from torchvision.models import MobileNet_V2_Weights
 
 # Use proper relative imports from parent package
 from ..residual_block import ResidualBlockSE
@@ -56,7 +57,8 @@ class MobileNetV2ASPPResidualSEUNet(nn.Module):
     Args:
         in_channels (int): Number of input channels (default=1 for grayscale)
         out_channels (int): Number of output channels (default=1 for binary segmentation)
-        pretrained (bool): Use ImageNet pre-trained weights (default=True)
+        pretrained (bool): Use ImageNet pre-trained weights (default=True). Deprecated, use weights instead.
+        weights (MobileNet_V2_Weights): Pre-trained weights to use (default=MobileNet_V2_Weights.IMAGENET1K_V1)
         freeze_encoder (bool): Freeze MobileNetV2 encoder (default=True)
         reduction_ratio (int): Reduction ratio for SE blocks (default=16)
         atrous_rates (list): Dilation rates for ASPP (default=[6, 12, 18])
@@ -68,7 +70,8 @@ class MobileNetV2ASPPResidualSEUNet(nn.Module):
         self,
         in_channels=1,
         out_channels=1,
-        pretrained=True,
+        pretrained=None,  # Deprecated: kept for backward compatibility
+        weights=MobileNet_V2_Weights.IMAGENET1K_V1,
         freeze_encoder=True,
         reduction_ratio=16,
         atrous_rates=[6, 12, 18],
@@ -77,9 +80,13 @@ class MobileNetV2ASPPResidualSEUNet(nn.Module):
     ):
         super(MobileNetV2ASPPResidualSEUNet, self).__init__()
         
+        # Handle backward compatibility: if pretrained is explicitly set, use it
+        if pretrained is not None:
+            weights = MobileNet_V2_Weights.IMAGENET1K_V1 if pretrained else None
+        
         # ==================== ENCODER (MobileNetV2) ====================
         # Load pre-trained MobileNetV2
-        mobilenet = models.mobilenet_v2(pretrained=pretrained)
+        mobilenet = models.mobilenet_v2(weights=weights)
         
         # MobileNetV2 expects 3-channel RGB input, but we have 1-channel grayscale
         # Solution: Replace first conv layer to accept 1-channel input
@@ -98,7 +105,7 @@ class MobileNetV2ASPPResidualSEUNet(nn.Module):
             )
             
             # Initialize new conv weights
-            if pretrained:
+            if weights is not None:
                 # Average RGB weights to initialize grayscale channel
                 with torch.no_grad():
                     new_conv.weight[:, :, :, :] = original_conv.weight.mean(dim=1, keepdim=True)
@@ -327,7 +334,7 @@ if __name__ == "__main__":
     model = MobileNetV2ASPPResidualSEUNet(
         in_channels=1,
         out_channels=1,
-        pretrained=True,
+        weights=MobileNet_V2_Weights.IMAGENET1K_V1,
         freeze_encoder=True,
         reduction_ratio=16,
         atrous_rates=[6, 12, 18],

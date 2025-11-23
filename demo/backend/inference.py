@@ -43,14 +43,15 @@ class InferenceEngine:
     def _setup_tta_transforms(self):
         """
         Setup Test-Time Augmentation transforms.
-        Uses geometric augmentations suitable for ultrasound images:
+        Uses geometric augmentations for robustness:
         - Original image
         - Horizontal flip
         - Vertical flip  
         - Both flips combined
-        
-        Note: Rotations are NOT used as they can distort the fetal head
-        position and reduce segmentation accuracy in ultrasound images.
+        - Slight rotation (+10°)
+        - Slight rotation (-10°)
+        - Scale up (1.1x)
+        - Scale down (0.9x)
         """
         self.tta_transforms = [
             # Original (no augmentation)
@@ -83,6 +84,30 @@ class InferenceEngine:
                     A.HorizontalFlip(p=1.0)
                 ])
             },
+            # # Rotate +10 degrees
+            # {
+            #     'name': 'rot+10',
+            #     'forward': A.Compose([A.Rotate(limit=(10, 10), border_mode=cv2.BORDER_REFLECT, p=1.0)]),
+            #     'reverse': A.Compose([A.Rotate(limit=(-10, -10), border_mode=cv2.BORDER_REFLECT, p=1.0)])
+            # },
+            # # Rotate -10 degrees
+            # {
+            #     'name': 'rot-10',
+            #     'forward': A.Compose([A.Rotate(limit=(-10, -10), border_mode=cv2.BORDER_REFLECT, p=1.0)]),
+            #     'reverse': A.Compose([A.Rotate(limit=(10, 10), border_mode=cv2.BORDER_REFLECT, p=1.0)])
+            # },
+            # # Scale up 1.1x
+            # {
+            #     'name': 'scale1.1',
+            #     'forward': A.Compose([A.Affine(scale=1.1, p=1.0)]),
+            #     'reverse': A.Compose([A.Affine(scale=1/1.1, p=1.0)])
+            # },
+            # # Scale down 0.9x
+            # {
+            #     'name': 'scale0.9',
+            #     'forward': A.Compose([A.Affine(scale=0.9, p=1.0)]),
+            #     'reverse': A.Compose([A.Affine(scale=1/0.9, p=1.0)])
+            # },
         ]
     
     def preprocess(self, image):
@@ -247,8 +272,8 @@ class InferenceEngine:
         Args:
             image (np.ndarray or PIL.Image): Input ultrasound image
             threshold (float): Threshold for binary segmentation (default: 0.5)
-            use_all_augmentations (bool): If True, use all 4 augmentations.
-                                         If False, use only 2 (original + hflip) for faster inference.
+            use_all_augmentations (bool): If True, use all 8 augmentations (flips, rotations, scales).
+                                         If False, use only 4 (original + 3 flips) for faster inference.
         
         Returns:
             dict: {
@@ -276,7 +301,7 @@ class InferenceEngine:
         if use_all_augmentations:
             transforms_to_use = self.tta_transforms  # All 4
         else:
-            transforms_to_use = self.tta_transforms[:2]  # Original + hflip only
+            transforms_to_use = self.tta_transforms[:1]  # Original
         
         # Storage for predictions
         all_prob_maps = []
@@ -374,6 +399,7 @@ class InferenceEngine:
         # Step 2: Run inference pipeline (with or without TTA)
         if use_tta:
             result = self.predict_with_tta(image, threshold, use_all_augmentations=True)
+            # result = self.predict_with_tta(image, threshold, use_all_augmentations=False)
         else:
             result = self.predict(image, threshold)
         

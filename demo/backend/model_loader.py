@@ -75,7 +75,7 @@ class ModelLoader:
             model = MobileNetV2ASPPResidualSEUNet(
                 in_channels=1,
                 out_channels=1,
-                pretrained=False,  # We're loading our trained weights
+                weights=None,  # We're loading our trained weights
                 freeze_encoder=False,  # No need to freeze during inference
                 reduction_ratio=16,
                 atrous_rates=[6, 12, 18],

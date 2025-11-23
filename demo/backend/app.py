@@ -23,9 +23,11 @@ import numpy as np
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app)  # Enable CORS for React frontend
+# CORS(app)  # Enable CORS for React frontend - TEMPORARILY DISABLED FOR DEBUGGING
 
 # Configuration
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max upload size
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching for development
 MODEL_PATH = Path(__file__).parent / 'best_model_mobinet_aspp_residual_se_v2.pth'
 DEMO_FRAMES_DIR = Path(__file__).parent.parent / 'frontend' / 'public' / 'demo_videos'
 
@@ -53,11 +55,30 @@ def health_check():
     Returns:
         JSON response with status and model loading state
     """
-    return jsonify({
-        'status': 'healthy',
-        'model_loaded': model_loader is not None,
-        'device': str(model_loader.device) if model_loader else None
-    })
+    print("Health check endpoint called")  # Debug
+    try:
+        print("Building response...")  # Debug
+        model_status = model_loader is not None
+        device_info = str(model_loader.device) if model_loader else None
+        
+        response_data = {
+            'status': 'healthy',
+            'model_loaded': model_status,
+            'device': device_info
+        }
+        print(f"Response data: {response_data}")  # Debug
+        
+        result = jsonify(response_data)
+        print("Jsonify successful, returning...")  # Debug
+        return result
+    except Exception as e:
+        print(f"ERROR in health_check: {e}")  # Debug
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'status': 'error',
+            'error': str(e)
+        }), 500
 
 
 @app.route('/api/upload', methods=['POST'])
@@ -234,6 +255,15 @@ def not_found(error):
     return jsonify({'error': 'Endpoint not found'}), 404
 
 
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    """Handle file too large errors."""
+    return jsonify({
+        'success': False,
+        'error': 'File too large. Maximum size is 16 MB.'
+    }), 413
+
+
 @app.errorhandler(500)
 def internal_error(error):
     """Handle 500 errors."""
@@ -254,4 +284,11 @@ if __name__ == '__main__':
     print(f"Stream: GET http://localhost:5000/api/stream")
     print("="*60 + "\n")
     
-    app.run(debug=True, host='0.0.0.0', port=5000, threaded=True)
+    try:
+        app.run(debug=False, host='127.0.0.1', port=5000, threaded=True)
+    except Exception as e:
+        print(f"Server crashed with error: {e}")
+        import traceback
+        traceback.print_exc()
+    finally:
+        print("Server shutting down...")
