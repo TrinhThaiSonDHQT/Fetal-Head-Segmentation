@@ -20,20 +20,6 @@ export interface QualityMetrics {
   is_valid_shape: boolean; // Is the shape reasonable for fetal head?
 }
 
-export interface StreamEvent {
-  type: 'frame' | 'complete' | 'error';
-  original?: string;
-  segmentation?: string;
-  frame_number?: number;
-  total_frames?: number;
-  
-  // New validation fields for stream
-  confidence_score?: number;
-  warnings?: string[];
-  
-  message?: string;
-}
-
 export interface HealthCheckResponse {
   status: string;
   model_loaded: boolean;

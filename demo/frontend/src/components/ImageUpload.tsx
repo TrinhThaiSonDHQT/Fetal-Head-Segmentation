@@ -1,14 +1,18 @@
 import { useState, useRef } from 'react';
-import { Upload, Loader2, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Upload, Loader2, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import Button from './ui/Button.js';
 import { Card, CardHeader, CardContent } from './ui/Card.js';
 import { Alert, AlertTitle, AlertDescription } from './ui/Alert.js';
 import { Badge } from './ui/Badge.js';
+import UsageGuide from './UsageGuide.js';
 import { useUploadImageMutation } from '../store/api/segmentationApi.js';
 
 export default function ImageUpload() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadImage, { data: result, isLoading, error }] =
     useUploadImageMutation();
@@ -17,11 +21,39 @@ export default function ImageUpload() {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
+    // Validate file type
+    const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/bmp', 'image/webp'];
+    if (!validImageTypes.includes(selectedFile.type)) {
+      setFileError('Please select a valid image file (JPEG, PNG, GIF, BMP, or WebP)');
+      setFile(null);
+      setPreview(null);
+      e.target.value = ''; // Reset file input
+      return;
+    }
+
+    // Validate file size (16 MB max)
+    const maxSize = 16 * 1024 * 1024; // 16 MB
+    if (selectedFile.size > maxSize) {
+      setFileError('File size exceeds 16 MB. Please select a smaller image.');
+      setFile(null);
+      setPreview(null);
+      e.target.value = '';
+      return;
+    }
+
+    // Clear any previous errors
+    setFileError(null);
+    setUploadError(null);
     setFile(selectedFile);
 
     // Create preview
     const reader = new FileReader();
     reader.onload = (e) => setPreview(e.target?.result as string);
+    reader.onerror = () => {
+      setFileError('Failed to read file. The file may be corrupted.');
+      setFile(null);
+      setPreview(null);
+    };
     reader.readAsDataURL(selectedFile);
   };
 
@@ -32,10 +64,46 @@ export default function ImageUpload() {
     formData.append('image', file);
 
     try {
+      setUploadError(null);
       await uploadImage(formData).unwrap();
-    } catch (err) {
+      setRetryCount(0); // Reset retry count on success
+    } catch (err: unknown) {
       console.error('Upload failed:', err);
+      
+      // Handle different error types
+      let errorMessage = 'Failed to process image. Please try again.';
+      
+      if (err && typeof err === 'object') {
+        // Network/timeout errors
+        if ('status' in err) {
+          const status = (err as { status?: number | string }).status;
+          if (status === 408) {
+            errorMessage = 'Request timeout. The server took too long to respond. Please try again.';
+          } else if (status === 413) {
+            errorMessage = 'File too large. Maximum size is 16 MB.';
+          } else if (status === 500) {
+            errorMessage = 'Server error. Please try again later.';
+          } else if (status === 400) {
+            // Extract backend error message if available
+            const data = (err as { data?: { error?: string } }).data;
+            if (data?.error) {
+              errorMessage = data.error;
+            } else {
+              errorMessage = 'Invalid image file. Please upload a valid ultrasound image.';
+            }
+          } else if (!status || status === 'FETCH_ERROR') {
+            errorMessage = 'Network error. Please check your connection and try again.';
+          }
+        }
+      }
+      
+      setUploadError(errorMessage);
+      setRetryCount((prev) => prev + 1);
     }
+  };
+
+  const handleRetry = () => {
+    handleUpload();
   };
 
   const getConfidenceBadge = (score: number) => {
@@ -54,6 +122,9 @@ export default function ImageUpload() {
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
+          {/* Usage Guidelines */}
+          <UsageGuide />
+
           {/* File Input */}
           <input
             ref={fileInputRef}
@@ -72,6 +143,14 @@ export default function ImageUpload() {
                 className="w-full h-96 object-contain bg-gray-50 rounded-lg border p-2"
               />
             </div>
+          )}
+
+          {/* File Type Error */}
+          {fileError && (
+            <Alert variant="error">
+              <AlertTitle>Invalid File Type</AlertTitle>
+              <AlertDescription>{fileError}</AlertDescription>
+            </Alert>
           )}
 
           {/* Upload Buttons */}
@@ -189,18 +268,49 @@ export default function ImageUpload() {
               </div>
 
               {/* Inference Time */}
-              <div className="text-xs text-gray-500 text-center">
+              <div className="text-sm text-gray-500 text-center">
                 Processed in {result.inference_time}ms
               </div>
             </div>
           )}
 
           {/* Error Display */}
-          {error && (
+          {(error || uploadError) && (
             <Alert variant="error">
-              <AlertTitle>Error</AlertTitle>
+              <AlertTitle>Error Processing Image</AlertTitle>
               <AlertDescription>
-                Failed to process image. Please try again.
+                <div className="space-y-3">
+                  <p>{uploadError || 'Failed to process image. Please try again.'}</p>
+                  
+                  {retryCount > 0 && retryCount < 3 && (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={handleRetry}
+                        variant="outline"
+                        size="sm"
+                        disabled={isLoading}
+                      >
+                        {isLoading ? (
+                          <>
+                            <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                            Retrying...
+                          </>
+                        ) : (
+                          'Retry Upload'
+                        )}
+                      </Button>
+                      <span className="text-xs text-gray-600">
+                        Attempt {retryCount} of 3
+                      </span>
+                    </div>
+                  )}
+                  
+                  {retryCount >= 3 && (
+                    <p className="text-xs text-gray-600">
+                      Multiple attempts failed. Please check your image file and network connection.
+                    </p>
+                  )}
+                </div>
               </AlertDescription>
             </Alert>
           )}

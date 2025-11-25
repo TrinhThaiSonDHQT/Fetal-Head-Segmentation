@@ -4,16 +4,12 @@ Flask REST API for Fetal Head Segmentation
 Provides endpoints for:
 - Health check
 - Image upload and segmentation
-- Video stream demo with Server-Sent Events
 """
-from flask import Flask, request, jsonify, Response
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
-import time
 import base64
 from pathlib import Path
-import glob
-import json
 
 from model_loader import ModelLoader
 from inference import InferenceEngine
@@ -28,6 +24,7 @@ app = Flask(__name__)
 # Configuration
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max upload size
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching for development
+app.config['REQUEST_TIMEOUT'] = 30  # 30 seconds timeout for requests
 MODEL_PATH = Path(__file__).parent / 'best_model_mobinet_aspp_residual_se_v2.pth'
 DEMO_FRAMES_DIR = Path(__file__).parent.parent / 'frontend' / 'public' / 'demo_videos'
 
@@ -119,25 +116,70 @@ def upload_image():
         # Get TTA flag (default: True)
         use_tta = request.form.get('use_tta', 'true').lower() == 'true'
         
-        # Read image
-        image = Image.open(file.stream)
+        # Read and validate image
+        try:
+            image = Image.open(file.stream)
+            # Verify image is not corrupted by loading it
+            image.verify()
+            # Re-open after verify (verify() closes the file)
+            file.stream.seek(0)
+            image = Image.open(file.stream)
+        except (IOError, OSError) as e:
+            return jsonify({
+                'success': False,
+                'error': 'Corrupted or invalid image file. Please upload a valid image.'
+            }), 400
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Failed to read image: {str(e)}'
+            }), 400
         
         # Convert to RGB if needed (some images might be RGBA or other formats)
-        if image.mode != 'RGB':
-            image = image.convert('RGB')
+        try:
+            if image.mode != 'RGB':
+                image = image.convert('RGB')
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Failed to convert image format: {str(e)}'
+            }), 400
         
         # Convert to numpy for processing
-        image_np = pil_to_numpy(image)
+        try:
+            image_np = pil_to_numpy(image)
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Failed to process image data: {str(e)}'
+            }), 400
         
         # Run inference with validation (TTA enabled by default)
-        result = inference_engine.process_image(image_np, use_tta=use_tta)
+        try:
+            result = inference_engine.process_image(image_np, use_tta=use_tta)
+        except RuntimeError as e:
+            return jsonify({
+                'success': False,
+                'error': 'Model inference failed. This may be due to GPU memory issues or invalid image dimensions.'
+            }), 500
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Inference error: {str(e)}'
+            }), 500
         
         # Extract results
         mask = result['mask']  # Binary mask (H, W)
         inference_time = result['inference_time']  # Time in ms
         
         # Create visualization overlay
-        visualization = create_overlay(image_np, mask)
+        try:
+            visualization = create_overlay(image_np, mask)
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Failed to create visualization: {str(e)}'
+            }), 500
         
         # Convert to base64 for JSON response
         original_b64 = image_to_base64(image_np)
@@ -172,83 +214,6 @@ def upload_image():
         }), 500
 
 
-@app.route('/api/stream', methods=['GET'])
-def stream_demo():
-    """
-    Server-Sent Events endpoint for video stream demo.
-    
-    Streams pre-recorded ultrasound frames with segmentation.
-    Each frame is processed and sent as an SSE event.
-    
-    Returns:
-        SSE stream with events:
-        - type: 'frame' - Contains original and segmentation
-        - type: 'complete' - Stream finished
-        - type: 'error' - Error occurred
-    """
-    def generate():
-        try:
-            # Get all demo frames
-            if not DEMO_FRAMES_DIR.exists():
-                yield f"data: {json.dumps({'type': 'error', 'message': 'Demo frames directory not found'})}\n\n"
-                return
-            
-            # Find all image files (support multiple formats)
-            frame_files = sorted(glob.glob(str(DEMO_FRAMES_DIR / 'frame_*.png'))) + \
-                         sorted(glob.glob(str(DEMO_FRAMES_DIR / 'frame_*.jpg')))
-            
-            if not frame_files:
-                yield f"data: {json.dumps({'type': 'error', 'message': 'No demo frames found'})}\n\n"
-                return
-            
-            # Process and stream each frame
-            for idx, frame_path in enumerate(frame_files):
-                # Load frame
-                image = Image.open(frame_path)
-                
-                # Convert to RGB if needed
-                if image.mode != 'RGB':
-                    image = image.convert('RGB')
-                
-                image_np = pil_to_numpy(image)
-                
-                # Run inference with validation
-                result = inference_engine.process_image(image_np)
-                mask = result['mask']
-                
-                # Create visualization overlay
-                visualization = create_overlay(image_np, mask)
-                
-                # Convert to base64
-                original_b64 = image_to_base64(image_np)
-                segmentation_b64 = image_to_base64(visualization)
-                
-                # Send frame event with validation data
-                event_data = {
-                    'type': 'frame',
-                    'original': original_b64,
-                    'segmentation': segmentation_b64,
-                    'frame_number': idx + 1,
-                    'total_frames': len(frame_files),
-                    'confidence_score': float(result['confidence_score']),
-                    'warnings': result['warnings']
-                }
-                
-                yield f"data: {json.dumps(event_data)}\n\n"
-                
-                # Small delay to simulate real-time scanning (~10 FPS)
-                time.sleep(0.1)
-            
-            # Send completion event
-            yield f"data: {json.dumps({'type': 'complete'})}\n\n"
-        
-        except Exception as e:
-            print(f"Error in stream: {str(e)}")
-            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
-    
-    return Response(generate(), mimetype='text/event-stream')
-
-
 @app.errorhandler(404)
 def not_found(error):
     """Handle 404 errors."""
@@ -270,6 +235,15 @@ def internal_error(error):
     return jsonify({'error': 'Internal server error'}), 500
 
 
+@app.errorhandler(408)
+def request_timeout(error):
+    """Handle request timeout errors."""
+    return jsonify({
+        'success': False,
+        'error': 'Request timeout. The operation took too long to complete.'
+    }), 408
+
+
 if __name__ == '__main__':
     # Initialize model before starting server
     initialize_model()
@@ -281,7 +255,6 @@ if __name__ == '__main__':
     print(f"Server: http://localhost:5000")
     print(f"Health: http://localhost:5000/api/health")
     print(f"Upload: POST http://localhost:5000/api/upload")
-    print(f"Stream: GET http://localhost:5000/api/stream")
     print("="*60 + "\n")
     
     try:
