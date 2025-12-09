@@ -42,10 +42,9 @@
 
 ### 1.4. Technologies Used and System Architecture of the Web Application
 
-- 1.4.1. Client-Server Architecture and HTTP Protocol.
-- 1.4.2. Backend Framework (Python Flask).
-- 1.4.3. Frontend Technologies (React, TypeScript, Vite).
-- 1.4.4. Deep Learning Framework (**PyTorch**).
+- 1.4.1. Backend Framework (Python Flask).
+- 1.4.2. Frontend Technologies (React, TypeScript, Vite).
+- 1.4.3. Deep Learning Framework (**PyTorch**).
 
 ---
 
