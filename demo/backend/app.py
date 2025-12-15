@@ -16,6 +16,9 @@ from inference import InferenceEngine
 from utils import pil_to_numpy, create_overlay, image_to_base64, numpy_to_pil
 from PIL import Image
 import numpy as np
+import random
+import time
+import glob
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -214,6 +217,139 @@ def upload_image():
         }), 500
 
 
+@app.route('/api/benchmark', methods=['GET'])
+def benchmark_inference():
+    """
+    Benchmark endpoint to measure average inference time.
+    
+    This endpoint processes ~100 random images from the dataset_v5 training set
+    and returns the average inference time per image. Used for testing performance.
+    
+    Query Parameters:
+        - num_images: Number of images to benchmark (default: 100, max: 500)
+        - use_tta: Whether to use Test-Time Augmentation (default: false)
+    
+    Returns:
+        JSON with:
+        - success: bool
+        - avg_inference_time: Average time per image in milliseconds
+        - total_images: Number of images processed
+        - total_time: Total processing time in seconds
+        - min_time: Minimum inference time
+        - max_time: Maximum inference time
+        - std_dev: Standard deviation of inference times
+        - use_tta: Whether TTA was enabled
+    """
+    try:
+        # Get query parameters
+        num_images = min(int(request.args.get('num_images', 100)), 500)
+        use_tta = request.args.get('use_tta', 'false').lower() == 'true'
+        
+        # Get path to dataset_v5 training images
+        project_root = Path(__file__).parent.parent.parent
+        dataset_path = project_root / 'shared' / 'dataset_v5' / 'training_set' / 'images'
+        
+        if not dataset_path.exists():
+            return jsonify({
+                'success': False,
+                'error': f'Dataset path not found: {dataset_path}'
+            }), 404
+        
+        # Get all image files
+        image_files = list(dataset_path.glob('*.png')) + list(dataset_path.glob('*.jpg'))
+        
+        if len(image_files) == 0:
+            return jsonify({
+                'success': False,
+                'error': 'No images found in dataset'
+            }), 404
+        
+        # Randomly sample images
+        num_images = min(num_images, len(image_files))
+        sampled_images = random.sample(image_files, num_images)
+        
+        # Track inference times
+        inference_times = []
+        failed_images = 0
+        
+        print(f"\n{'='*60}")
+        print(f"Starting benchmark: {num_images} images, TTA={use_tta}")
+        print(f"{'='*60}")
+        
+        benchmark_start = time.time()
+        
+        # Process each image
+        for idx, img_path in enumerate(sampled_images, 1):
+            try:
+                # Load image
+                image = Image.open(img_path)
+                if image.mode != 'RGB':
+                    image = image.convert('RGB')
+                
+                # Convert to numpy
+                image_np = pil_to_numpy(image)
+                
+                # Run inference
+                result = inference_engine.process_image(image_np, use_tta=use_tta)
+                inference_times.append(result['inference_time'])
+                
+                # Progress indicator
+                if idx % 10 == 0:
+                    print(f"Processed {idx}/{num_images} images...")
+                
+            except Exception as e:
+                print(f"Failed to process {img_path.name}: {str(e)}")
+                failed_images += 1
+                continue
+        
+        benchmark_end = time.time()
+        total_time = benchmark_end - benchmark_start
+        
+        # Calculate statistics
+        if len(inference_times) == 0:
+            return jsonify({
+                'success': False,
+                'error': 'All images failed to process'
+            }), 500
+        
+        avg_time = np.mean(inference_times)
+        min_time = np.min(inference_times)
+        max_time = np.max(inference_times)
+        std_dev = np.std(inference_times)
+        
+        print(f"\n{'='*60}")
+        print(f"Benchmark Complete!")
+        print(f"{'='*60}")
+        print(f"Total images: {len(inference_times)}/{num_images}")
+        print(f"Average inference time: {avg_time:.2f} ms")
+        print(f"Min/Max: {min_time:.2f} / {max_time:.2f} ms")
+        print(f"Std Dev: {std_dev:.2f} ms")
+        print(f"Total benchmark time: {total_time:.2f} s")
+        print(f"{'='*60}\n")
+        
+        return jsonify({
+            'success': True,
+            'avg_inference_time': round(avg_time, 2),
+            'total_images': len(inference_times),
+            'failed_images': failed_images,
+            'total_time': round(total_time, 2),
+            'min_time': round(min_time, 2),
+            'max_time': round(max_time, 2),
+            'std_dev': round(std_dev, 2),
+            'use_tta': use_tta,
+            'throughput_fps': round(len(inference_times) / total_time, 2)
+        })
+    
+    except Exception as e:
+        print(f"Benchmark error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.errorhandler(404)
 def not_found(error):
     """Handle 404 errors."""
@@ -255,6 +391,7 @@ if __name__ == '__main__':
     print(f"Server: http://localhost:5000")
     print(f"Health: http://localhost:5000/api/health")
     print(f"Upload: POST http://localhost:5000/api/upload")
+    print(f"Benchmark: GET http://localhost:5000/api/benchmark")
     print("="*60 + "\n")
     
     try:
