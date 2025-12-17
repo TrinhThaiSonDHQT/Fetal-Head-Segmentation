@@ -1,0 +1,51 @@
+3.1.1.2. Segmentation Processing
+FR-2.1: Complete Inference Pipeline
+•	Description: The system shall orchestrate the complete segmentation workflow with quality validation.
+•	Acceptance Criteria:
+o	Accept NumPy array input (grayscale or RGB)
+o	Apply Test-Time Augmentation (TTA) by default for robust predictions
+o	Execute TTA-enhanced segmentation pipeline
+o	Validate input as ultrasound image upload_image
+o	Compute quality metrics 
+o	Generate validation warnings for low-quality predictionsupload_image
+o	Return dictionary with: mask, original, overlay, metrics, warnings, timing
+o	Measure and report total processing time (ms)
+FR-2.2: Test-Time Augmentation (TTA)
+•	Description: The system shall apply Test-Time Augmentation to improve prediction robustness and confidence estimation.
+•	Acceptance Criteria:
+o	Apply 4 geometric augmentations: original, horizontal flip, vertical flip, both flips
+o	Execute full inference pipeline (preprocess → inference → postprocess) for each augmentation
+o	Reverse augmentation transformations on probability maps (not binary masks)
+o	Compute ensemble probability map by averaging all predictions
+o	Calculate pixel-wise variance across predictions as consistency metric
+o	Generate TTA confidence score from variance and ensemble metrics
+FR-2.3: Image Preprocessing
+•	Description: The system shall preprocess input images to match model training specifications before inference.
+•	Acceptance Criteria:
+o	Convert RGB/RGBA images to grayscale (single channel)
+o	Resize to 256×256 using bilinear interpolation
+o	Normalize pixel values to [0, 1] range
+o	Convert input array into a tensor format compatible with the deep learning model inference engine
+o	Move tensor to computation device (CUDA if available, else CPU)
+o	Preserve original image dimensions for post-processing
+o	Apply geometric augmentation transformations (when called within TTA loop)
+FR-2.4: Model Inference
+•	Description: The system shall execute fetal head segmentation using the trained U-Net model on preprocessed images.
+•	Acceptance Criteria:
+o	Accept preprocessed tensor input (1, 1, 256, 256)
+o	Execute forward pass through loaded U-Net model
+o	Utilize GPU acceleration when available (CUDA device)
+o	Return raw logits (pre-sigmoid) from model output layer
+o	Handle inference in evaluation mode (no gradient computation)
+o	Complete single inference in ≤250ms on GPU, ≤1000ms on CPU
+FR-2.5: Segmentation Post-processing
+•	Description: The system shall convert raw model outputs into interpretable binary segmentation masks.
+•	Acceptance Criteria:
+o	Apply sigmoid activation to raw logits → probability map [0, 1]
+o	Reverse augmentation transformations on probability maps (when called within TTA loop)
+o	Apply binary threshold (0.5) to generate binary mask from ensemble probability map
+o	Resize mask from 256×256 to original image dimensions using nearest-neighbor interpolation
+o	Convert binary mask to uint8 format (0 or 255)
+o	Preserve probability map for confidence analysis
+o	Return both binary mask and probability map
+
