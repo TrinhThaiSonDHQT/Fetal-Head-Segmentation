@@ -60,3 +60,4 @@ shared/Large-Scale Annotation Dataset for Fetal Head Biometry/
 
 # Workspace
 workspace/
+*.code-workspace
