@@ -1,5 +1,5 @@
 """
-Prepare dataset_v5 from Large-Scale Annotation Dataset for Fetal Head Biometry
+Prepare dataset from Large-Scale Annotation Dataset for Fetal Head Biometry
 - 70/15/15 split for train/val/test
 - TRUE patient-level split (NO data leakage)
 - Patients split globally first, then all their images assigned to same split
@@ -18,7 +18,7 @@ random.seed(42)
 
 # Source and destination paths
 SOURCE_DIR = Path("e:/Fetal Head Segmentation/shared/Large-Scale Annotation Dataset for Fetal Head Biometry")
-DEST_DIR = Path("e:/Fetal Head Segmentation/shared/dataset_v5")
+DEST_DIR = Path("e:/Fetal Head Segmentation/shared/dataset")
 
 # Split ratios
 TRAIN_RATIO = 0.70
@@ -356,7 +356,7 @@ Based on PASCAL VOC format with the following labels:
 
 ## Directory Structure
 ```
-dataset_v5/
+dataset/
 ├── training_set/
 │   ├── images/
 │   └── masks/

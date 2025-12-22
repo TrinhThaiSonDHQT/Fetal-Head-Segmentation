@@ -2,12 +2,12 @@
 
 # Data Paths
 data:
-  train_images: 'shared/dataset_v3/training_set/images'
-  train_masks: 'shared/dataset_v3/training_set/masks'
-  val_images: 'shared/dataset_v3/validation_set/images'
-  val_masks: 'shared/dataset_v3/validation_set/masks'
-  test_images: 'shared/dataset_v3/test_set/images'
-  test_masks: 'shared/dataset_v3/test_set/masks'
+  train_images: 'shared/dataset/training_set/images'
+  train_masks: 'shared/dataset/training_set/masks'
+  val_images: 'shared/dataset/validation_set/images'
+  val_masks: 'shared/dataset/validation_set/masks'
+  test_images: 'shared/dataset/test_set/images'
+  test_masks: 'shared/dataset/test_set/masks'
 
 # Model Architecture
 model:
@@ -28,7 +28,7 @@ model:
 training:
   batch_size: 16
   num_epochs: 100
-  num_workers: 4
+  num_workers: 0
   pin_memory: true
   early_stopping_patience: 15
 
