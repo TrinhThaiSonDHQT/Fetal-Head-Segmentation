@@ -55,5 +55,8 @@ preprocessed_data/
 weights/
 *.log
 
-# Dataset (if needed)
+# Dataset
 shared/Large-Scale Annotation Dataset for Fetal Head Biometry/
+
+# Workspace
+workspace/
