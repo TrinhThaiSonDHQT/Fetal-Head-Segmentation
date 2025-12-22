@@ -40,7 +40,7 @@ class LargeScaleDataset(Dataset):
             if f.endswith(('.png', '.jpg', '.jpeg'))
         ])
         
-        # For dataset_v4: images and masks have identical filenames
+        # For dataset: images and masks have identical filenames
         self.image_files = all_files
         
         # Verify all masks exist with same filenames
@@ -83,7 +83,7 @@ class LargeScaleDataset(Dataset):
         if image is None:
             raise FileNotFoundError(f"Failed to load image: {img_path}")
         
-        # Load mask (RGB format) and extract red channel for dataset_v4 compatibility
+        # Load mask (RGB format) and extract red channel for dataset compatibility
         # Red masks have annotations in red channel only (R > 0, G=0, B=0)
         mask = cv2.imread(mask_path)
         if mask is None:
