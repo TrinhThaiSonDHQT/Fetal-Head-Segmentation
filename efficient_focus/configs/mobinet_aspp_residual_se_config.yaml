@@ -60,10 +60,10 @@ loss:
 
 # Logging and Checkpointing
 logging:
-  checkpoint_dir: 'efficient_focus/results/checkpoints'
-  log_dir: 'efficient_focus/results/logs'
-  prediction_dir: 'efficient_focus/results/predictions'
-  visualization_dir: 'efficient_focus/results/visualizations'
+  checkpoint_dir: 'outputs/checkpoints'
+  log_dir: 'outputs/logs'
+  prediction_dir: 'outputs/predictions'
+  visualization_dir: 'outputs/visualizations'
   save_every_n_epochs: 5
   save_best_only: true
   visualize_every_n_epochs: 5
