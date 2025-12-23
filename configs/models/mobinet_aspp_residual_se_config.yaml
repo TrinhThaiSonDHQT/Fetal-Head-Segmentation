@@ -1,0 +1,75 @@
+# Training Configuration for Fetal Head Segmentation
+
+# Data Paths
+data:
+  train_images: 'shared/dataset/training_set/images'
+  train_masks: 'shared/dataset/training_set/masks'
+  val_images: 'shared/dataset/validation_set/images'
+  val_masks: 'shared/dataset/validation_set/masks'
+  test_images: 'shared/dataset/test_set/images'
+  test_masks: 'shared/dataset/test_set/masks'
+
+# Model Architecture
+model:
+  name: 'MobileNetV2ASPPResidualSEUNet'
+  in_channels: 1
+  out_channels: 1
+  # MobileNetV2 encoder settings
+  pretrained: true
+  freeze_encoder: true
+  # SE block reduction ratio
+  reduction_ratio: 16
+  # ASPP configuration
+  atrous_rates: [6, 12, 18]
+  aspp_dropout: 0.5
+  aspp_use_groupnorm: true
+
+# Training Hyperparameters
+training:
+  batch_size: 16
+  num_epochs: 100
+  num_workers: 0
+  pin_memory: true
+  early_stopping_patience: 15
+
+  # Optimizer
+  optimizer:
+    name: 'Adam'
+    lr: 0.0003
+    betas: [0.9, 0.999]
+    eps: 1.0e-8
+    weight_decay: 1.0e-4
+
+  # Learning Rate Scheduler
+  scheduler:
+    name: 'ReduceLROnPlateau'
+    mode: 'max' # 'max' because we monitor val_dice (higher is better)
+    factor: 0.5
+    patience: 10
+    min_lr: 1.0e-6
+    verbose: true
+
+# Loss Function
+loss:
+  name: 'DiceBCELoss'
+  dice_weight: 0.8
+  bce_weight: 0.2
+  smooth: 1.0e-6
+  pos_weight: null # Auto-compute from first batch
+  auto_weight: true # Enable auto pos_weight calculation
+
+# Logging and Checkpointing
+logging:
+  checkpoint_dir: 'efficient_focus/results/checkpoints'
+  log_dir: 'efficient_focus/results/logs'
+  prediction_dir: 'efficient_focus/results/predictions'
+  visualization_dir: 'efficient_focus/results/visualizations'
+  save_every_n_epochs: 5
+  save_best_only: true
+  visualize_every_n_epochs: 5
+
+# Device
+device: 'cuda' # 'cuda' or 'cpu'
+
+# Random Seed (for reproducibility)
+seed: 42
