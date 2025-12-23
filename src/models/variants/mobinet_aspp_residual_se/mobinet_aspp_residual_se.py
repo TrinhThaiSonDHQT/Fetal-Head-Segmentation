@@ -31,9 +31,7 @@ import torchvision.models as models
 from torchvision.models import MobileNet_V2_Weights
 
 # Use proper relative imports from parent package
-from ..residual_block import ResidualBlockSE
-from ..se_block import SEBlock
-from ..aspp import ASPP
+from ...components import ResidualBlockSE, SEBlock, ASPP
 
 
 class MobileNetV2ASPPResidualSEUNet(nn.Module):
