@@ -57,6 +57,7 @@ weights/
 
 # Dataset
 shared/Large-Scale Annotation Dataset for Fetal Head Biometry/
+data/raw/Large-Scale Annotation Dataset for Fetal Head Biometry/
 
 # Workspace
 workspace/
