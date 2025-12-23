@@ -17,8 +17,8 @@ import csv
 random.seed(42)
 
 # Source and destination paths
-SOURCE_DIR = Path("e:/Fetal Head Segmentation/shared/Large-Scale Annotation Dataset for Fetal Head Biometry")
-DEST_DIR = Path("e:/Fetal Head Segmentation/shared/dataset")
+SOURCE_DIR = Path("e:/Fetal Head Segmentation/data/raw/Large-Scale Annotation Dataset for Fetal Head Biometry")
+DEST_DIR = Path("e:/Fetal Head Segmentation/data/processed/dataset")
 
 # Split ratios
 TRAIN_RATIO = 0.70

@@ -2,12 +2,12 @@
 
 # Data Paths
 data:
-  train_images: 'shared/dataset_v3/training_set/images'
-  train_masks: 'shared/dataset_v3/training_set/masks'
-  val_images: 'shared/dataset_v3/validation_set/images'
-  val_masks: 'shared/dataset_v3/validation_set/masks'
-  test_images: 'shared/dataset_v3/test_set/images'
-  test_masks: 'shared/dataset_v3/test_set/masks'
+  train_images: 'data/processed/training_set/images'
+  train_masks: 'data/processed/training_set/masks'
+  val_images: 'data/processed/validation_set/images'
+  val_masks: 'data/processed/validation_set/masks'
+  test_images: 'data/processed/test_set/images'
+  test_masks: 'data/processed/test_set/masks'
 
 # Model Architecture
 model:
