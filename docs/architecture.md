@@ -84,6 +84,6 @@ All augmentations are synchronized for image-mask pairs.
   - `mobinet_aspp_residual_se/`
   - `standard_mobinet_unet/`
 
-- **Configurations:** `configs/models/`
-  - `mobinet_aspp_residual_se.yaml`
-  - `standard_mobinet_unet.yaml`
+- **Configurations:** `configs/`
+  - `mobinet_aspp_residual_se_config.yaml`
+  - `standard_mobinet_unet_config.yaml`

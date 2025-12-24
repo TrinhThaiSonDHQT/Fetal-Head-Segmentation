@@ -68,10 +68,10 @@ python scripts/prepare_dataset.py
 
 ## Configuration
 
-Configuration files are in `configs/models/`:
+Configuration files are in `configs/`:
 
-- `mobinet_aspp_residual_se.yaml` - Full model configuration
-- `standard_mobinet_unet.yaml` - Baseline model configuration
+- `mobinet_aspp_residual_se_config.yaml` - Full model configuration
+- `standard_mobinet_unet_config.yaml` - Baseline model configuration
 
 Edit these files to customize:
 
@@ -85,9 +85,8 @@ Edit these files to customize:
 Ensure the following directories exist (they should be created automatically):
 
 ```bash
-mkdir -p models/best models/checkpoints
-mkdir -p outputs/predictions outputs/visualizations outputs/reports
-mkdir -p experiments
+mkdir -p models/best
+mkdir -p outputs/checkpoints outputs/logs outputs/predictions outputs/visualizations
 mkdir -p data/raw data/processed
 ```
 
@@ -115,5 +114,7 @@ mkdir -p data/raw data/processed
 After setup:
 
 1. Review [architecture.md](architecture.md) for model details
-2. See [training.md](training.md) for training instructions
-3. Explore notebooks in `notebooks/` for data analysis
+2. Explore notebooks in `notebooks/` for:
+   - Data analysis and visualization
+   - Model training and evaluation
+   - Statistical validation of results

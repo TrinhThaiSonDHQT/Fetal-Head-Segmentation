@@ -7,32 +7,57 @@ High-accuracy deep learning model for fetal head segmentation in 2D ultrasound i
 ```
 fetal-head-segmentation/
 ├── configs/              # Configuration files (YAML)
+│   ├── mobinet_aspp_residual_se_config.yaml
+│   └── standard_mobinet_unet_config.yaml
 ├── data/                 # Dataset storage
-│   ├── raw/             # Original HC18 dataset
+│   ├── raw/             # Original dataset
 │   └── processed/       # Preprocessed train/val/test splits
+│       ├── training_set/
+│       ├── validation_set/
+│       ├── test_set/
+│       └── dataset_metadata.csv
 ├── docs/                # Documentation
-├── experiments/         # Experiment logs and tracking
+├── efficient_focus/     # Efficient model implementations
+│   ├── src/
+│   ├── configs/
+│   ├── results/
+│   └── weights/
 ├── models/              # Saved model weights
-│   ├── best/           # Best performing models
-│   └── checkpoints/    # Training checkpoints
+│   └── best/           # Best performing models
 ├── notebooks/           # Jupyter notebooks for analysis
+│   ├── mobinet_aspp_residual_se/
+│   └── standard_mobinet_unet/
 ├── outputs/             # Generated outputs
+│   ├── checkpoints/    # Training checkpoints
+│   ├── logs/           # Training logs
 │   ├── predictions/    # Model predictions
-│   ├── visualizations/ # Result visualizations
-│   └── reports/        # Evaluation reports
-├── scripts/             # Entry point scripts
-│   ├── train.py        # Training script
-│   ├── evaluate.py     # Evaluation script
-│   ├── predict.py      # Inference script
+│   └── visualizations/ # Result visualizations
+├── scripts/             # Utility scripts
 │   └── prepare_dataset.py  # Data preprocessing
+├── shared/              # Shared utilities and resources
 └── src/                 # Source code package
     ├── data/           # Data loading and preprocessing
-    ├── models/         # Model architectures
+    │   ├── dataset.py
+    │   └── dataset_v2.py
     ├── losses/         # Loss functions
+    │   ├── bce_logits.py
+    │   └── dice_bce_loss.py
     ├── metrics/        # Evaluation metrics
-    ├── training/       # Training logic
-    ├── inference/      # Inference logic
+    │   ├── dice_score.py
+    │   ├── iou.py
+    │   ├── pixel_accuracy.py
+    │   └── segmentation_metrics.py
+    ├── models/         # Model architectures
+    │   ├── components/
+    │   └── variants/
     └── utils/          # Utility functions
+        ├── device_utils.py
+        ├── logger.py
+        ├── optimizer.py
+        ├── saver.py
+        ├── train.py
+        ├── visualization.py
+        └── transforms/
 ```
 
 ## Installation
@@ -55,23 +80,24 @@ pip install -e .
 
 ## Quick Start
 
-### Training
+### Exploratory Data Analysis
 
 ```bash
-python scripts/train.py --config configs/models/mobinet_aspp_residual_se.yaml
+# Run notebooks for data exploration and visualization
+jupyter notebook notebooks/01_exploratory_data_analysis.ipynb
+jupyter notebook notebooks/02_visualize_augmentation_process.ipynb
 ```
 
-### Evaluation
+### Training & Evaluation
 
-```bash
-python scripts/evaluate.py --model models/best/best_model.pth --config configs/models/mobinet_aspp_residual_se.yaml
-```
+Refer to the notebooks in `notebooks/mobinet_aspp_residual_se/` or `notebooks/standard_mobinet_unet/` for complete training and evaluation workflows.
 
-### Inference
+### Using Pretrained Models
 
-```bash
-python scripts/predict.py --model models/best/best_model.pth --input path/to/image.png --output path/to/output/
-```
+Pretrained models are available in `models/best/`:
+
+- `best_model_mobinet_aspp_residual_se_v2.pth`
+- `best_model_mobinet_aspp_residual_se_v3.pth`
 
 ## Model Architecture
 
@@ -81,19 +107,26 @@ Improved U-Net with:
 - **Feature Pyramid + Scale Attention Module (FP+SAM)** for multi-scale feature fusion
 - **ASPP (Atrous Spatial Pyramid Pooling)** for enhanced contextual information
 
-## Performance Metrics
-
-- **DSC (Dice Similarity Coefficient):** ≥97.81%
-- **mIoU (Mean Intersection over Union):** ≥97.90%
-- **mPA (Mean Pixel Accuracy):** ≥99.18%
-
 ## Dataset
 
-HC18 Grand Challenge dataset:
+**Large-Scale Annotation Dataset for Fetal Head Biometry**
 
-- Training: 999 images
-- Testing: 355 images
-- Resolution: 256×256 pixels
+- **Total Images:** 3,792 ultrasound images
+- **Original Dimensions:** 959 × 661 pixels (preprocessed to 256×256)
+- **License:** Creative Commons Attribution 4.0 International (CC BY 4.0)
+- **Fetal Plane Groups:**
+  - Trans-thalamic
+  - Trans-ventricular
+  - Trans-cerebellum
+  - Diverse fetal head images
+- **Class Instances:**
+  - Brain: 3,794 instances
+  - CSP (Cavum Septum Pellucidum): 1,865 instances
+  - LV (Lateral Ventricle): 1,512 instances
+- **Available Formats:** 11 formats including COCO, YOLO, PASCAL, Segmentation mask, and others
+- **Data Split:** Custom train/validation/test splits created during preprocessing
+
+For more details, see [docs/Readme.txt](Readme.txt).
 
 ## License
 
